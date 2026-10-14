@@ -1,0 +1,6 @@
+# Full APKs and extracted libs are generated/large — never commit them.
+# Split chunks (*.apk.part*) ARE committed: vendorsetup.sh merges them back
+# on `source build/envsetup.sh`. Run ./split-apk.sh before committing APKs.
+*.apk
+*.so
+!*.apk.part*
