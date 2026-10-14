@@ -15,9 +15,9 @@ MORPHE_INCLUDE_YOUTUBE ?= true
 MORPHE_INCLUDE_MUSIC ?= true
 MORPHE_INCLUDE_REDDIT ?= true
 
-# Toggle app (privileged, platform-signed). It only controls the boot
-# bind-mount, so stockless builds (patched installed directly) don't need
-# it. Opt out in your device.mk BEFORE inheriting this file:
+# Manager app (privileged, platform-signed): per-app toggles, live mount
+# state, Play-override alerts and the update center. Opt out in your
+# device.mk BEFORE inheriting this file:
 #   MORPHE_INCLUDE_MANAGER := false
 MORPHE_INCLUDE_MANAGER ?= true
 ifeq ($(MORPHE_INCLUDE_MANAGER),true)
@@ -55,6 +55,8 @@ endif
 endif
 endif
 
-# Mod enabled by default; MorpheManager flips this (reboot to apply)
+# Mod enabled by default, per app; MorpheManager flips these (reboot to apply)
 PRODUCT_PRODUCT_PROPERTIES += \
-    persist.sys.morphe.mod=true
+    persist.sys.morphe.yt=true \
+    persist.sys.morphe.music=true \
+    persist.sys.morphe.reddit=true

@@ -3,7 +3,7 @@
 # when a stock YT Music base exists (see products/morphe.mk); stockless
 # builds install patched directly and need no mount.
 
-on property:sys.boot_completed=1 && property:persist.sys.morphe.mod=true
+on property:sys.boot_completed=1 && property:persist.sys.morphe.music=true
     # Unmount stale mount from a previous boot, if any
     umount /product/app/YTMusic/com.google.android.apps.youtube.music.apk
 

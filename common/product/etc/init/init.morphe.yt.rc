@@ -6,7 +6,7 @@
 # exists (see products/morphe.mk); stockless builds install patched directly
 # and need no mount. MorpheManager owns the toggle UI.
 
-on property:sys.boot_completed=1 && property:persist.sys.morphe.mod=true
+on property:sys.boot_completed=1 && property:persist.sys.morphe.yt=true
     # Unmount stale mount from a previous boot, if any
     umount /product/app/YouTube/com.google.android.youtube.apk
 
