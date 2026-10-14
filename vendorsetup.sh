@@ -153,9 +153,11 @@ echo "--- Morphe: Setup Complete ---"
 # opted out; MORPHE_SETTINGS_AUTO=1 applies without asking).
 _MORPHE_PATCHER="$_MORPHE_DIR/settings-patch/apply-settings-patch.sh"
 _MORPHE_ROMROOT="$(cd "$_MORPHE_DIR/../.." >/dev/null 2>&1 && pwd)"
-if [ -z "${MORPHE_NO_SETTINGS_PATCH:-}" ] \
-        && [ -x "$_MORPHE_PATCHER" ] \
-        && [ -d "$_MORPHE_ROMROOT/packages/apps/Settings" ]; then
+if [ ! -x "$_MORPHE_PATCHER" ]; then
+    # Interactive hint only: an old checkout silently disables the offer.
+    [ -t 0 ] && echo "[morphe] settings-patch tool missing — resync vendor/morphe to enable the ROM Settings offer."
+elif [ -d "$_MORPHE_ROMROOT/packages/apps/Settings" ] \
+        && [ -z "${MORPHE_NO_SETTINGS_PATCH:-}" ]; then
     if ! ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --check >/dev/null 2>&1; then
         if [ "${MORPHE_SETTINGS_AUTO:-0}" = "1" ]; then
             ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --apply || true
