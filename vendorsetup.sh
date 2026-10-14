@@ -160,6 +160,7 @@ elif [ -d "$_MORPHE_ROMROOT/packages/apps/Settings" ] \
         && [ -z "${MORPHE_NO_SETTINGS_PATCH:-}" ]; then
     if ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --check >/dev/null 2>&1; then
         echo "[morphe] ROM Settings integration: applied."
+        ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --refresh || true
     elif [ "${MORPHE_SETTINGS_AUTO:-0}" = "1" ]; then
         ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --apply || true
     elif [ -t 0 ]; then

@@ -14,6 +14,7 @@
 #   ./apply-settings-patch.sh            # status + interactive prompt if tty
 #   ./apply-settings-patch.sh --apply    # apply without prompting
 #   ./apply-settings-patch.sh --check    # exit 0 applied, 1 missing
+#   ./apply-settings-patch.sh --refresh  # refresh stale marked copies only
 #   ./apply-settings-patch.sh --revert   # remove everything again
 # Env:
 #   SETTINGS_DIR=...  override the Settings path (default:
@@ -131,6 +132,25 @@ EOF
     show_search_guidance
 }
 
+do_refresh() {
+    # Refresh kit file copies when the tree holds a marked but outdated
+    # revision (dashboard block untouched). Silent when already current.
+    # Files without our marker are never touched.
+    local refreshed=0 f base
+    for f in "$FRAGMENT_DST" "$XML_DST"; do
+        base="$SETTINGS_DIR/$f"
+        if [ -f "$base" ] && grep -q "morphe-settings:" "$base" \
+                && ! cmp -s "$FILES_DIR/$f" "$base"; then
+            cp -f "$FILES_DIR/$f" "$base"
+            refreshed=1
+        fi
+    done
+    if [ "$refreshed" -eq 1 ]; then
+        echo "[settings-patch] refreshed to latest kit revision."
+    fi
+    return 0
+}
+
 do_revert() {
     if ! is_applied && [ ! -f "$SETTINGS_DIR/$FRAGMENT_DST" ] && [ ! -f "$SETTINGS_DIR/$XML_DST" ]; then
         echo "[settings-patch] nothing applied — nothing to revert."
@@ -166,6 +186,7 @@ case "${1:-}" in
         else echo "[settings-patch] missing."; exit 1; fi ;;
     --apply) do_apply ;;
     --revert) do_revert ;;
+    --refresh) do_refresh ;;
     --find-search) show_search_guidance ;;
     "" )
         if is_applied; then
