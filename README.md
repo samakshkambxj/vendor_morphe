@@ -119,6 +119,15 @@ include vendor/morphe/products/board.mk
 
 Then build as usual.
 
+To drop the MorpheManager toggle app (it only controls the boot
+bind-mount, so stockless builds gain nothing from it), set this in your
+device/ROM makefile *before* the inherit line:
+
+```make
+MORPHE_INCLUDE_MANAGER := false
+$(call inherit-product, vendor/morphe/products/morphe.mk)
+```
+
 ### Stock vs stockless (automatic, per app)
 
 The tree detects each stock APK with `wildcard` at build time — no flags:

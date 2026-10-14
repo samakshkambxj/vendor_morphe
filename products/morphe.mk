@@ -2,9 +2,15 @@
 # Inherit from your device or ROM product makefile:
 #   $(call inherit-product, vendor/morphe/products/morphe.mk)
 
-# Toggle app (privileged, platform-signed)
+# Toggle app (privileged, platform-signed). It only controls the boot
+# bind-mount, so stockless builds (patched installed directly) don't need
+# it. Opt out in your device.mk BEFORE inheriting this file:
+#   MORPHE_INCLUDE_MANAGER := false
+MORPHE_INCLUDE_MANAGER ?= true
+ifeq ($(MORPHE_INCLUDE_MANAGER),true)
 PRODUCT_PACKAGES += \
     MorpheManager
+endif
 
 # Stock + patched prebuilts
 $(call inherit-product, vendor/morphe/common/common-vendor.mk)
