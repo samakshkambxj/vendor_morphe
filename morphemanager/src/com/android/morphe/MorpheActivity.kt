@@ -42,6 +42,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -123,14 +124,17 @@ private fun ModsTab(bar: SnackbarHostState) {
     val scope = rememberCoroutineScope()
     var states by remember { mutableStateOf(emptyList<AppState>()) }
     var wanted by remember { mutableStateOf(ModApp.values().associateWith { it.wanted() }) }
+    var env by remember { mutableStateOf<EnvState?>(null) }
 
     fun refresh() {
         scope.launch(Dispatchers.IO) {
             val s = queryAppState(ctx)
             val w = ModApp.values().associateWith { it.wanted() }
+            val e = queryEnv(ctx)
             withContext(Dispatchers.Main) {
                 states = s
                 wanted = w
+                env = e
             }
         }
     }
@@ -141,6 +145,30 @@ private fun ModsTab(bar: SnackbarHostState) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { Spacer(Modifier.height(4.dp)) }
+        env?.let { e ->
+            item {
+                ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
+                    Column(Modifier.padding(4.dp)) {
+                        ListItem(
+                            headlineContent = { Text(ctx.getString(R.string.setup_title), fontWeight = FontWeight.Medium) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        )
+                        EnvRow(
+                            ok = e.gmsPresent,
+                            text = ctx.getString(
+                                if (e.gmsPresent) R.string.gms_ok else R.string.gms_missing
+                            ),
+                        )
+                        EnvRow(
+                            ok = !e.storePresent,
+                            text = ctx.getString(
+                                if (e.storePresent) R.string.detach_note else R.string.no_store
+                            ),
+                        )
+                    }
+                }
+            }
+        }
         items(states, key = { it.app.name }) { s ->
             val on = wanted[s.app] == true
             val stockMode = s.app.stockMode()
@@ -223,6 +251,8 @@ private fun UpdatesTab(bar: SnackbarHostState) {
     var checking by remember { mutableStateOf(false) }
     var checkedAt by remember { mutableStateOf(UpdateCenter.lastChecked(ctx)) }
     var rows by remember { mutableStateOf(emptyList<UpdateRow>()) }
+    var notes by remember { mutableStateOf(UpdateCenter.notes(ctx)) }
+    var notesOpen by remember { mutableStateOf(false) }
     var notifOk by remember { mutableStateOf(hasNotifPerm(ctx)) }
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -236,12 +266,15 @@ private fun UpdatesTab(bar: SnackbarHostState) {
                     installed = UpdateCenter.installedVersion(ctx, app),
                     latest = UpdateCenter.latest(ctx, app)?.version,
                     update = UpdateCenter.hasUpdate(ctx, app),
+                    ignored = UpdateCenter.ignored(ctx, app),
                 )
             }
             val t = UpdateCenter.lastChecked(ctx)
+            val n = UpdateCenter.notes(ctx)
             withContext(Dispatchers.Main) {
                 rows = r
                 checkedAt = t
+                notes = n
             }
         }
     }
@@ -332,6 +365,35 @@ private fun UpdatesTab(bar: SnackbarHostState) {
                 ) { Text(ctx.getString(R.string.checking)) }
             }
         }
+        item {
+            ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            if (notes.first.isEmpty()) ctx.getString(R.string.whats_new)
+                            else ctx.getString(R.string.whats_new) + " · " + notes.first,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            if (notes.second.isEmpty()) ctx.getString(R.string.no_notes)
+                            else notes.second,
+                            maxLines = if (notesOpen) Int.MAX_VALUE else 4,
+                        )
+                    },
+                    trailingContent = {
+                        if (notes.second.isNotEmpty()) {
+                            TextButton(onClick = { notesOpen = !notesOpen }) {
+                                Text(if (notesOpen) "−" else "+")
+                            }
+                        }
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
+        }
         items(rows, key = { it.app.name }) { r ->
             ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
                 Column(Modifier.padding(4.dp)) {
@@ -352,6 +414,12 @@ private fun UpdatesTab(bar: SnackbarHostState) {
                                 if (r.latest != null) {
                                     Text(ctx.getString(R.string.latest_label, r.latest))
                                 }
+                                if (r.ignored) {
+                                    Text(
+                                        ctx.getString(R.string.updates_ignored),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                         },
                         trailingContent = {
@@ -370,6 +438,16 @@ private fun UpdatesTab(bar: SnackbarHostState) {
                             .padding(bottom = 12.dp),
                         horizontalArrangement = Arrangement.End,
                     ) {
+                        TextButton(onClick = {
+                            UpdateCenter.setIgnored(ctx, r.app, !r.ignored)
+                            reload()
+                        }) {
+                            Text(
+                                ctx.getString(
+                                    if (r.ignored) R.string.unignore else R.string.ignore
+                                )
+                            )
+                        }
                         FilledTonalButton(
                             onClick = {
                                 if (UpdateCenter.download(ctx, r.app)) {
@@ -400,4 +478,22 @@ private data class UpdateRow(
     val installed: String?,
     val latest: String?,
     val update: Boolean,
+    val ignored: Boolean,
 )
+
+/** One setup-status line: check icon when fine, warning when actionable. */
+@Composable
+private fun EnvRow(ok: Boolean, text: String) {
+    ListItem(
+        headlineContent = { Text(text) },
+        trailingContent = {
+            Icon(
+                if (ok) Icons.Filled.Check else Icons.Filled.Warning,
+                contentDescription = null,
+                tint = if (ok) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.error,
+            )
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+}

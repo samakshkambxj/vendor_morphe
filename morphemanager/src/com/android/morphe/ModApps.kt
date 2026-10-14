@@ -54,6 +54,29 @@ enum class ModApp(
     }
 }
 
+/** Environment the patched apps depend on at runtime. */
+data class EnvState(
+    /** Real Play Services or system microG (same package name) — needed for login. */
+    val gmsPresent: Boolean,
+    /** Play Store present — detachment reminder applies. */
+    val storePresent: Boolean,
+)
+
+fun queryEnv(ctx: Context): EnvState {
+    fun has(pkg: String): Boolean = try {
+        ctx.packageManager.getPackageInfo(pkg, PackageManager.PackageInfoFlags.of(0))
+        true
+    } catch (e: PackageManager.NameNotFoundException) {
+        false
+    }
+    // MicroG-RE (app.revanced.android.gms) is intentionally NOT checked: it
+    // serves non-root parallel installs, meaningless for these stock-name builds.
+    return EnvState(
+        gmsPresent = has("com.google.android.gms"),
+        storePresent = has("com.android.vending"),
+    )
+}
+
 /** Live install state of one app, resolved from PackageManager + /proc/mounts. */
 data class AppState(
     val app: ModApp,

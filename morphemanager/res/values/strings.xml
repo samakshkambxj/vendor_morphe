@@ -31,6 +31,16 @@
     <string name="never_checked">Never checked</string>
     <string name="check_failed">Check failed — will retry on schedule</string>
     <string name="notify_channel">Update checks</string>
+    <string name="whats_new">What changed</string>
+    <string name="no_notes">Check for updates to see release notes</string>
+    <string name="ignore">Ignore updates</string>
+    <string name="unignore">Watch updates</string>
+    <string name="updates_ignored">Updates ignored for this app</string>
+    <string name="setup_title">Setup status</string>
+    <string name="gms_ok">Play Services ready — login works</string>
+    <string name="gms_missing">No Play Services or system microG — apps run logged-out</string>
+    <string name="detach_note">Play Store present — detach these apps or updates replace them</string>
+    <string name="no_store">No Play Store — nothing can replace the builds</string>
     <string name="notify_update_title">New patched base available</string>
     <string name="notify_update_body">%1$s: installed %2$s, latest %3$s. Update the ROM to get it.</string>
     <string name="notify_override_title">Patched app replaced</string>

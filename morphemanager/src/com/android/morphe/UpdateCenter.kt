@@ -42,6 +42,18 @@ object UpdateCenter {
 
     fun lastChecked(ctx: Context): Long = prefs(ctx).getLong(KEY_LAST_CHECK, 0)
 
+    fun ignored(ctx: Context, app: ModApp): Boolean =
+        prefs(ctx).getBoolean("ignore_${app.name}", false)
+
+    fun setIgnored(ctx: Context, app: ModApp, ignore: Boolean) {
+        prefs(ctx).edit().putBoolean("ignore_${app.name}", ignore).apply()
+    }
+
+    /** Release notes of the tag the last check selected (empty when unknown). */
+    fun notes(ctx: Context): Pair<String, String> =
+        prefs(ctx).getString("notes_tag", "")!! to
+            prefs(ctx).getString("notes_body", "")!!
+
     fun latest(ctx: Context, app: ModApp): LatestModule? {
         val v = prefs(ctx).getString("latest_${app.name}_v", null) ?: return null
         val u = prefs(ctx).getString("latest_${app.name}_u", null) ?: return null
@@ -106,6 +118,8 @@ object UpdateCenter {
         return try {
             val list = JSONArray(get("https://api.github.com/repos/$BUILDER/releases?per_page=10"))
             var found: Map<ModApp, Pair<String, String>>? = null
+            var foundTag = ""
+            var foundBody = ""
             for (i in 0 until list.length()) {
                 val tag = list.optJSONObject(i)?.optString("tag_name", "") ?: ""
                 if (tag.isEmpty()) continue
@@ -113,6 +127,8 @@ object UpdateCenter {
                 val urls = assetUrls(rel)
                 if (ModApp.values().all { it in urls }) {
                     found = urls
+                    foundTag = tag
+                    foundBody = rel.optString("body", "")
                     break
                 }
             }
@@ -123,6 +139,8 @@ object UpdateCenter {
                     ed.putString("latest_${app.name}_v", nv.second)
                     ed.putString("latest_${app.name}_u", nv.first)
                 }
+                ed.putString("notes_tag", foundTag)
+                ed.putString("notes_body", foundBody.take(4000))
                 ed.putLong(KEY_LAST_CHECK, System.currentTimeMillis())
                 ed.apply()
                 notifyUpdates(ctx)
@@ -141,6 +159,7 @@ object UpdateCenter {
     }
 
     fun hasUpdate(ctx: Context, app: ModApp): Boolean {
+        if (ignored(ctx, app)) return false
         val inst = installedVersion(ctx, app) ?: return false
         val lat = latest(ctx, app) ?: return false
         return cmpVer(lat.version, inst) > 0
