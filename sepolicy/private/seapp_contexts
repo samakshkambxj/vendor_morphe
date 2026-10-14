@@ -1,0 +1,2 @@
+# MorpheManager (privileged platform app) runs in the morphe_app domain
+user=system seinfo=platform isPrivApp=true name=com.android.morphe domain=morphe_app type=system_app_data_file levelFrom=all

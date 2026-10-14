@@ -1,0 +1,9 @@
+# init needs to bind-mount patched APKs over the stock app paths
+allow init system_file:file mounton;
+
+# init reads the patched blobs out of /product/etc/rv
+allow init system_file:dir { search getattr };
+allow init system_file:file { read open getattr };
+
+# the mount() syscall itself
+allow init rootfs:filesystem mount;

@@ -1,0 +1,29 @@
+# MorpheManager toggle app domain
+app_domain(morphe_app)
+binder_use(morphe_app)
+
+allow morphe_app {
+  activity_service
+  activity_task_service
+  app_api_service
+  device_state_service
+  hint_service
+  media_session_service
+  mediaextractor_service
+  mediametrics_service
+  mediaserver_service
+  permission_checker_service
+}:service_manager find;
+
+allow morphe_app system_app_data_file:dir create_dir_perms;
+allow morphe_app system_app_data_file:{ file lnk_file } create_file_perms;
+
+allow morphe_app system_server:binder { call transfer };
+
+# read/write the persist.sys.morphe.mod toggle
+get_prop(morphe_app, morphe_prop)
+set_prop(morphe_app, morphe_prop)
+
+# the toggle is world-readable so Settings/system_server can show state
+get_prop(system_server, morphe_prop)
+get_prop(appdomain, morphe_prop)

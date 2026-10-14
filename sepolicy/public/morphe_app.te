@@ -1,0 +1,2 @@
+type morphe_app, domain;
+typeattribute morphe_app mlstrustedsubject;
