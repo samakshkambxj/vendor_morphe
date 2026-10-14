@@ -13,9 +13,61 @@
 #
 # NOTE: this file is SOURCED, not executed. No `set -e`, no `exit`, only `return`.
 
-# Per-app env mirrors of the make flags (default on): export the same names
-# to keep envsetup from fetching/warning about apps you excluded in make.
-#   MORPHE_INCLUDE_APPS=false MORPHE_INCLUDE_REDDIT=false source build/envsetup.sh
+_MORPHE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && pwd)"
+_MORPHE_YT_STOCK="$_MORPHE_DIR/common/product/app/YouTube/com.google.android.youtube.apk"
+_MORPHE_MUSIC_STOCK="$_MORPHE_DIR/common/product/app/YTMusic/com.google.android.apps.youtube.music.apk"
+_MORPHE_REDDIT_STOCK="$_MORPHE_DIR/common/product/app/Reddit/com.reddit.frontpage.apk"
+_MORPHE_YT_PATCHED="$_MORPHE_DIR/common/product/etc/rv/YTPatched.apk"
+_MORPHE_MUSIC_PATCHED="$_MORPHE_DIR/common/product/etc/rv/YTMusicPatched.apk"
+_MORPHE_REDDIT_PATCHED="$_MORPHE_DIR/common/product/etc/rv/RedditPatched.apk"
+
+# App selection: chosen interactively on first source (tty only), persisted
+# in gitignored .apps.conf, re-asked with MORPHE_ASK=1. The exports feed the
+# make flags (environment beats ?= defaults; explicit makefile assignments
+# still win outright, so device.mk always has the last word).
+_MORPHE_CONF="$_MORPHE_DIR/.apps.conf"
+_morphe_ask_one() {
+    # $1 = var name, $2 = pretty app name. Default = current value.
+    local cur="${!1:-true}" ans
+    if [ "$cur" = "true" ]; then
+        printf '[morphe] include %s? [Y/n] ' "$2"
+    else
+        printf '[morphe] include %s? [y/N] ' "$2"
+    fi
+    read -r ans || ans=""
+    case "$ans" in
+        [yY]*) eval "$1=true" ;;
+        [nN]*) eval "$1=false" ;;
+        *) eval "$1=\"$cur\"" ;;
+    esac
+}
+if [ -f "$_MORPHE_CONF" ]; then
+    # shellcheck disable=SC1090
+    . "$_MORPHE_CONF"
+    _MORPHE_FIRST=0
+else
+    _MORPHE_FIRST=1
+fi
+: "${MORPHE_INCLUDE_YOUTUBE:=true}"
+: "${MORPHE_INCLUDE_MUSIC:=true}"
+: "${MORPHE_INCLUDE_REDDIT:=true}"
+if { [ "$_MORPHE_FIRST" -eq 1 ] || [ -n "${MORPHE_ASK:-}" ]; } && [ -t 0 ]; then
+    _morphe_ask_one MORPHE_INCLUDE_YOUTUBE YouTube
+    _morphe_ask_one MORPHE_INCLUDE_MUSIC "YT Music"
+    _morphe_ask_one MORPHE_INCLUDE_REDDIT Reddit
+    {
+        echo "# morphe app selection (written by vendorsetup.sh; delete to re-ask, or MORPHE_ASK=1 re-asks)"
+        echo "MORPHE_INCLUDE_YOUTUBE=$MORPHE_INCLUDE_YOUTUBE"
+        echo "MORPHE_INCLUDE_MUSIC=$MORPHE_INCLUDE_MUSIC"
+        echo "MORPHE_INCLUDE_REDDIT=$MORPHE_INCLUDE_REDDIT"
+    } > "$_MORPHE_CONF"
+elif [ "$_MORPHE_FIRST" -eq 1 ]; then
+    echo "[morphe] no saved selection (non-interactive): defaulting to all apps."
+    echo "         export MORPHE_INCLUDE_<YOUTUBE|MUSIC|REDDIT>=false or re-source on a tty to choose."
+fi
+export MORPHE_INCLUDE_YOUTUBE MORPHE_INCLUDE_MUSIC MORPHE_INCLUDE_REDDIT
+echo "[morphe] apps: youtube=$MORPHE_INCLUDE_YOUTUBE music=$MORPHE_INCLUDE_MUSIC reddit=$MORPHE_INCLUDE_REDDIT (MORPHE_ASK=1 to change)"
+# Per-app gate honoring the make flags above (plus the master switch).
 _morphe_app_on() {
     # $1 = youtube|music|reddit
     [ "${MORPHE_INCLUDE_APPS:-true}" = "true" ] || return 1
@@ -26,14 +78,6 @@ _morphe_app_on() {
         *) return 1 ;;
     esac
 }
-
-_MORPHE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && pwd)"
-_MORPHE_YT_STOCK="$_MORPHE_DIR/common/product/app/YouTube/com.google.android.youtube.apk"
-_MORPHE_MUSIC_STOCK="$_MORPHE_DIR/common/product/app/YTMusic/com.google.android.apps.youtube.music.apk"
-_MORPHE_REDDIT_STOCK="$_MORPHE_DIR/common/product/app/Reddit/com.reddit.frontpage.apk"
-_MORPHE_YT_PATCHED="$_MORPHE_DIR/common/product/etc/rv/YTPatched.apk"
-_MORPHE_MUSIC_PATCHED="$_MORPHE_DIR/common/product/etc/rv/YTMusicPatched.apk"
-_MORPHE_REDDIT_PATCHED="$_MORPHE_DIR/common/product/etc/rv/RedditPatched.apk"
 
 echo "--- Morphe: Initializing Build Environment ---"
 

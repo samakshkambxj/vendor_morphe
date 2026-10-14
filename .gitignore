@@ -4,3 +4,5 @@
 *.apk
 *.so
 !*.apk.part*
+# Local builder state (app selection written by vendorsetup.sh).
+.apps.conf

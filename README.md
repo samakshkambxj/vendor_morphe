@@ -93,22 +93,28 @@ Committing refreshed APKs (they exceed GitHub's 100MB limit as whole files):
 
 ## 3. Automatic setup on envsetup
 
-`vendorsetup.sh` is sourced automatically by `source build/envsetup.sh`
-and prepares the prebuilts before every build:
-
-1. merges `*.apk.part*` chunks back into full APKs,
-2. extracts `arm64` native libs from the stock APKs into `.../lib/arm64`,
-3. downloads patched builds via `update.sh` when missing.
+`vendorsetup.sh` is sourced automatically by `source build/envsetup.sh`.
+On first source it asks which apps to include (one prompt each, Enter
+accepts the default); the choice is saved to gitignored `.apps.conf`,
+exported so the make flags pick it up, and printed on every source:
 
 ```bash
-source build/envsetup.sh   # all of the above happens automatically
+source build/envsetup.sh   # ask once, then merge/libs/fetch automatically
 ```
+
+After the choice it prepares the prebuilts before every build: merges
+`*.apk.part*` chunks back into full APKs, extracts `arm64` native libs
+into `.../lib/arm64`, and downloads patched builds via `update.sh` when
+missing (skipping apps you excluded).
 
 Controls:
 
 ```bash
 MORPHE_NO_AUTO_FETCH=1 source build/envsetup.sh  # offline / CI: skip downloads
 MORPHE_FETCH=1 source build/envsetup.sh          # force re-download of patched builds
+MORPHE_ASK=1 source build/envsetup.sh            # re-ask the app selection
+rm vendor/morphe/.apps.conf                      # same effect, forgets the choice
+MORPHE_INCLUDE_REDDIT=false source build/envsetup.sh  # one-shot override, no file
 ```
 
 ## 4. Inherit in your tree
