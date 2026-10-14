@@ -6,7 +6,6 @@ import android.os.SystemProperties
 import android.widget.Toast
 import androidx.preference.SwitchPreferenceCompat
 import com.android.settings.R
-import com.android.settings.SettingsEnums
 import com.android.settings.dashboard.DashboardFragment
 import com.android.settings.search.BaseSearchIndexProvider
 
@@ -22,7 +21,10 @@ class MorpheSettingsFragment : DashboardFragment() {
 
     override fun getLogTag(): String = "MorpheSettings"
 
-    override fun getMetricsCategory(): Int = SettingsEnums.PAGE_UNKNOWN
+    // Metrics category unknown: this tree has no com.android.settings.SettingsEnums
+    // to reference, and a raw unknown id always compiles. Vendor toggle screen;
+    // nothing meaningful to attribute page views to.
+    override fun getMetricsCategory(): Int = 0
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         super.onCreatePreferences(savedInstanceState, rootKey)
