@@ -20,9 +20,6 @@ allow morphe_app system_app_data_file:{ file lnk_file } create_file_perms;
 
 allow morphe_app system_server:binder { call transfer };
 
-# update center: builder release checks + module downloads
-netdomain(morphe_app)
-
 # ROM Settings screen writes the same toggle props (system_app domain)
 set_prop(system_app, morphe_prop)
 
