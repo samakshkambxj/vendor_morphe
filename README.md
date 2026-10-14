@@ -138,10 +138,12 @@ The tree detects each stock APK with `wildcard` at build time — no flags:
   init script and arm64 lib dir for that app.
 - **Stockless mode** (no stock APK — vanilla ROMs with no Google apps):
   the patched build installs directly as
-  `/product/app/YouTube/com.google.android.youtube.apk` (same for Music);
-  PackageManager extracts its libs itself. No mount, no init script, no
-  lib staging for that app. The MorpheManager toggle has nothing to swap
-  in this mode (documented in-app behavior is mount-only).
+  `/product/app/YouTube/com.google.android.youtube.apk` (same for Music),
+  with its native lib set staged alongside in `lib/arm64` (module APKs
+  ship Deflated libs with extraction disabled, so the tree materializes
+  them — otherwise startup dies with `UnsatisfiedLinkError`). No mount,
+  no init script for that app. The MorpheManager toggle has nothing to
+  swap in this mode (documented in-app behavior is mount-only).
 
 You can mix: stock YouTube + stockless Music, or vice versa.
 

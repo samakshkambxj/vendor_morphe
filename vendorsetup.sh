@@ -43,27 +43,40 @@ _morphe_merge_parts() {
 }
 
 _morphe_extract_libs() {
-    # $1 = app dir, $2 = apk name — stock APKs ship arm64-v8a libs that must
-    # sit next to the installed APK as lib/arm64 for the runtime linker.
-    # Skips when already extracted (keeps repeat sources fast).
-    if [ -s "$1/$2" ] && { [ ! -d "$1/lib/arm64" ] || [ -z "$(ls -A "$1/lib/arm64" 2>/dev/null)" ]; }; then
-        if ! command -v unzip >/dev/null 2>&1; then
-            echo "WARNING: 'unzip' not found — cannot extract libs for $2"
-            return 0
+    # $1 = app dir; remaining args = candidate APK full paths in preference
+    # order (stock first: version-identical full set; patched fallback in
+    # stockless mode — module APKs keep libs Deflated with extraction
+    # disabled, so without staging them the app dies at startup with
+    # UnsatisfiedLinkError). Skips when lib/arm64 is already populated.
+    local app_dir=$1
+    shift
+    local apk=""
+    for a in "$@"; do
+        if [ -s "$a" ]; then
+            apk="$a"
+            break
         fi
-        echo "Extracting libs for $2..."
-        rm -rf "$1/lib"
-        mkdir -p "$1/lib"
-        if unzip -q -o "$1/$2" "lib/arm64-v8a/*" -d "$1" 2>/dev/null \
-                && [ -d "$1/lib/arm64-v8a" ]; then
-            mv "$1/lib/arm64-v8a" "$1/lib/arm64"
-            touch "$1/lib/placeholder.txt"
-            echo "Libs processed: $1/lib/arm64"
-        else
-            # APK has no bundled arm64 libs (or unzip found none) — keep dir valid.
-            touch "$1/lib/placeholder.txt"
-            echo "No arm64-v8a libs in $2, skipping."
-        fi
+    done
+    [ -n "$apk" ] || return 0
+    if [ -d "$app_dir/lib/arm64" ] && [ -n "$(ls -A "$app_dir/lib/arm64" 2>/dev/null)" ]; then
+        return 0
+    fi
+    if ! command -v unzip >/dev/null 2>&1; then
+        echo "WARNING: 'unzip' not found — cannot extract libs for $(basename "$apk")"
+        return 0
+    fi
+    echo "Extracting libs for $(basename "$apk")..."
+    rm -rf "$app_dir/lib"
+    mkdir -p "$app_dir/lib"
+    if unzip -q -o "$apk" "lib/arm64-v8a/*" -d "$app_dir" 2>/dev/null \
+            && [ -d "$app_dir/lib/arm64-v8a" ]; then
+        mv "$app_dir/lib/arm64-v8a" "$app_dir/lib/arm64"
+        touch "$app_dir/lib/placeholder.txt"
+        echo "Libs processed: $app_dir/lib/arm64"
+    else
+        # APK has no bundled arm64 libs (or unzip found none) — keep dir valid.
+        touch "$app_dir/lib/placeholder.txt"
+        echo "No arm64-v8a libs in $(basename "$apk"), skipping."
     fi
 }
 
@@ -72,8 +85,8 @@ _morphe_merge_parts "$_MORPHE_DIR/common/product/etc/rv" "YTMusicPatched.apk"
 _morphe_merge_parts "$_MORPHE_DIR/common/product/app/YouTube" "com.google.android.youtube.apk"
 _morphe_merge_parts "$_MORPHE_DIR/common/product/app/YTMusic" "com.google.android.apps.youtube.music.apk"
 
-_morphe_extract_libs "$_MORPHE_DIR/common/product/app/YouTube" "com.google.android.youtube.apk"
-_morphe_extract_libs "$_MORPHE_DIR/common/product/app/YTMusic" "com.google.android.apps.youtube.music.apk"
+_morphe_extract_libs "$_MORPHE_DIR/common/product/app/YouTube" "$_MORPHE_YT_STOCK" "$_MORPHE_YT_PATCHED"
+_morphe_extract_libs "$_MORPHE_DIR/common/product/app/YTMusic" "$_MORPHE_MUSIC_STOCK" "$_MORPHE_MUSIC_PATCHED"
 
 # Patched builds: fetch when missing (or forced), unless opted out.
 _morphe_need_fetch=0
