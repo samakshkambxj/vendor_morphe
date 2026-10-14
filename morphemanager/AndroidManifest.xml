@@ -6,7 +6,7 @@
 
     <application
         android:label="@string/app_name"
-        android:icon="@mipmap/sym_def_app_icon"
+        android:icon="@drawable/ic_morphe"
         android:supportsRtl="true">
         <activity
             android:name=".MorpheActivity"
