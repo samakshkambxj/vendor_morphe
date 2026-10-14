@@ -148,4 +148,27 @@ fi
 
 echo "--- Morphe: Setup Complete ---"
 
+# Optional ROM Settings integration: offers to add the Morphe screen to
+# packages/apps/Settings (prompt only when interactive, missing, and not
+# opted out; MORPHE_SETTINGS_AUTO=1 applies without asking).
+_MORPHE_PATCHER="$_MORPHE_DIR/settings-patch/apply-settings-patch.sh"
+_MORPHE_ROMROOT="$(cd "$_MORPHE_DIR/../.." >/dev/null 2>&1 && pwd)"
+if [ -z "${MORPHE_NO_SETTINGS_PATCH:-}" ] \
+        && [ -x "$_MORPHE_PATCHER" ] \
+        && [ -d "$_MORPHE_ROMROOT/packages/apps/Settings" ]; then
+    if ! ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --check >/dev/null 2>&1; then
+        if [ "${MORPHE_SETTINGS_AUTO:-0}" = "1" ]; then
+            ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --apply || true
+        elif [ -t 0 ]; then
+            printf '[morphe] Add the Morphe screen to ROM Settings? [y/N] '
+            read -r _morphe_ans || _morphe_ans=""
+            if [[ "$_morphe_ans" == [yY]* ]]; then
+                ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --apply || true
+            else
+                echo "[morphe] skipped (re-run: vendor/morphe/settings-patch/apply-settings-patch.sh --apply)."
+            fi
+        fi
+    fi
+fi
+
 return 0 2>/dev/null || true

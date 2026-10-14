@@ -208,7 +208,8 @@ Caveats for stockless:
   NOT used here.
 - **Optional Settings toggle.** `persist.sys.morphe.{yt,music,reddit}` are
   world-readable by design (`morphe_prop`), so Settings switches can flip
-  them the same way MorpheManager does (reboot to apply).
+  them the same way MorpheManager does (reboot to apply). This tree can
+  install such a screen for you — see §7.
 
 ## 6. Updating
 
@@ -225,6 +226,28 @@ device still means a ROM rebuild (or flashing the downloaded module zip
 with root). The manager needs `INTERNET` (auto-granted) and asks for
 notification permission on first use.
 
+## 7. Optional: Morphe screen inside ROM Settings
+
+`settings-patch/` carries a Settings fragment (one switch per property)
+plus an auto-apply script. On `source build/envsetup.sh` you are asked
+once whether to install it into `packages/apps/Settings` (top-level
+entry + screen); afterwards it stays silent. Controls:
+
+```bash
+cd vendor/morphe/settings-patch
+./apply-settings-patch.sh            # status + prompt
+./apply-settings-patch.sh --apply    # no prompt
+./apply-settings-patch.sh --check    # exit 0 = installed
+./apply-settings-patch.sh --revert   # remove again
+MORPHE_SETTINGS_AUTO=1 source build/envsetup.sh    # apply without asking
+MORPHE_NO_SETTINGS_PATCH=1 source build/envsetup.sh # never ask
+```
+
+Notes: the fragment writes the toggle props, which needs
+`set_prop(system_app, morphe_prop)` — already in this tree's sepolicy.
+Settings search indexing is the one manual step (registry differs per
+tree); the script prints the exact snippet when it finishes.
+
 ## Files
 
 - `products/morphe.mk` — packages, sepolicy include, per-app init copy, default properties, include flags
@@ -232,3 +255,4 @@ notification permission on first use.
 - `common/product/etc/init/init.morphe.{yt,music,reddit}.rc` — boot bind-mounts, one per app, property-gated
 - `sepolicy/` — `morphe_init` (mount), `morphe_app` (manager domain + net), `morphe_prop` (3 toggle props)
 - `morphemanager/` — M3E manager app (per-app toggles, live mount state, override alerts, update center), platform priv-app + whitelist
+- `settings-patch/` — ROM Settings fragment + screen XML + auto-apply script (prompted on envsetup)

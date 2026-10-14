@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- morphe-settings:xml -->
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:title="Morphe">
+
+    <SwitchPreferenceCompat
+        android:key="morphe_yt"
+        android:title="YouTube (patched)"
+        android:summary="Mount the patched build over stock YouTube at boot"
+        android:defaultValue="true"
+        app:iconSpaceReserved="false" />
+
+    <SwitchPreferenceCompat
+        android:key="morphe_music"
+        android:title="YT Music (patched)"
+        android:summary="Mount the patched build over stock YT Music at boot"
+        android:defaultValue="true"
+        app:iconSpaceReserved="false" />
+
+    <SwitchPreferenceCompat
+        android:key="morphe_reddit"
+        android:title="Reddit (patched)"
+        android:summary="Mount the patched build over stock Reddit at boot"
+        android:defaultValue="true"
+        app:iconSpaceReserved="false" />
+
+    <Preference
+        android:key="morphe_reboot_note"
+        android:title="Reboot to apply changes"
+        android:selectable="false"
+        app:iconSpaceReserved="false" />
+
+</PreferenceScreen>

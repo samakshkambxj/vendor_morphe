@@ -23,6 +23,9 @@ allow morphe_app system_server:binder { call transfer };
 # update center: builder release checks + module downloads
 netdomain(morphe_app)
 
+# ROM Settings screen writes the same toggle props (system_app domain)
+set_prop(system_app, morphe_prop)
+
 # read/write the persist.sys.morphe.mod toggle
 get_prop(morphe_app, morphe_prop)
 set_prop(morphe_app, morphe_prop)
