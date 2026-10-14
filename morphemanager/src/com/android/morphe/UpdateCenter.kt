@@ -2,8 +2,8 @@ package com.android.morphe
 
 import android.Manifest
 import android.app.DownloadManager
-import android.app.JobInfo
-import android.app.JobScheduler
+import android.app.job.JobInfo
+import android.app.job.JobScheduler
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
