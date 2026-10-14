@@ -42,14 +42,40 @@ DASHBOARD_BLOCK='    <!-- morphe-settings:dashboard-begin -->
         android:fragment="com.android.settings.morphe.MorpheSettingsFragment" />
     <!-- morphe-settings:dashboard-end -->'
 
-SEARCH_NOTE='Search indexing (one manual step — registry differs per tree):
-  1. Open the search registry in your Settings tree
-     (src/com/android/settings/search/SearchIndexableResources.* —
-     .kt or .java, Impl variant included).
-  2. Next to the other addIndex/put entries, add:
-       com.android.settings.morphe.MorpheSettingsFragment.SEARCH_INDEX_DATA_PROVIDER
-     following the exact call style of the neighboring lines.
-  3. Rebuild Settings. The Morphe entry then appears in Settings search.'
+# Locate the search-index registry (name varies: .kt/.java, Impl or not)
+# and print a tailored registration snippet for the style found there.
+# Deliberately locate-only: inventing a registry call blind risks breaking
+# the Settings build, so the one line stays manual — but exact.
+show_search_guidance() {
+    local -a cands=()
+    mapfile -t cands < <(find "$SETTINGS_DIR/src" -iname '*searchindexable*' 2>/dev/null | sort) || true
+    if [ ${#cands[@]} -eq 0 ]; then
+        echo "[settings-patch] no search registry found under src/ by name."
+        echo "[settings-patch] add the SEARCH_INDEX_DATA_PROVIDER line manually (see README §7)."
+        return 0
+    fi
+    echo "[settings-patch] search registry discovery:"
+    local f
+    for f in "${cands[@]}"; do
+        echo "  file: ${f#$SETTINGS_DIR/}"
+        if grep -q -E 'sResMap\.put|sResMap\[' "$f"; then
+            echo "  style: map entries — add one line in the same shape:"
+            grep -m2 -E 'sResMap\.(put|\[)' "$f" | sed 's/^/    | /'
+            echo "    + equivalent entry for"
+            echo "      com.android.settings.morphe.MorpheSettingsFragment with"
+            echo "      R.xml.morphe_settings (see its SEARCH_INDEX_DATA_PROVIDER)."
+        elif grep -q 'addIndex(' "$f"; then
+            echo "  style: addIndex helper — mirror a neighboring line:"
+            grep -m2 'addIndex(' "$f" | sed 's/^/    | /'
+            echo "    + equivalent addIndex for"
+            echo "      com.android.settings.morphe.MorpheSettingsFragment."
+        else
+            echo "  style: unrecognized — open it, mirror a neighboring entry for"
+            echo "  com.android.settings.morphe.MorpheSettingsFragment (README §7)."
+        fi
+    done
+    echo "[settings-patch] rebuild Settings afterwards; the entry then appears in search."
+}
 
 die() { echo "[settings-patch] ERROR: $*" >&2; exit 1; }
 [ -d "$SETTINGS_DIR" ] || die "no Settings tree at $SETTINGS_DIR (set SETTINGS_DIR=... to override)"
@@ -103,7 +129,8 @@ EOF
             echo "$DASHBOARD_BLOCK"
         fi
     fi
-    echo "[settings-patch] applied. $SEARCH_NOTE"
+    echo "[settings-patch] applied."
+    show_search_guidance
 }
 
 do_revert() {
@@ -141,6 +168,7 @@ case "${1:-}" in
         else echo "[settings-patch] missing."; exit 1; fi ;;
     --apply) do_apply ;;
     --revert) do_revert ;;
+    --find-search) show_search_guidance ;;
     "" )
         if is_applied; then
             echo "[settings-patch] already applied."

@@ -245,8 +245,9 @@ MORPHE_NO_SETTINGS_PATCH=1 source build/envsetup.sh # never ask
 
 Notes: the fragment writes the toggle props, which needs
 `set_prop(system_app, morphe_prop)` — already in this tree's sepolicy.
-Settings search indexing is the one manual step (registry differs per
-tree); the script prints the exact snippet when it finishes.
+Settings search indexing is one manual line: `--find-search` locates the
+registry file and shows the exact call shape to mirror (registry call
+shapes differ per tree, so the script shows instead of guessing).
 
 ## Files
 
