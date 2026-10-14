@@ -1,2 +1,7 @@
+# MorpheManager app domain. Ships on system_ext (a platform partition), so it
+# must carry the coredomain attribute: since BOARD_API_LEVEL 202604 the
+# treble labeling test fails the build for any platform app whose label
+# lacks it ("All platform apps must be labeled with a coredomain type").
 type morphe_app, domain;
 typeattribute morphe_app mlstrustedsubject;
+typeattribute morphe_app coredomain;
