@@ -6,6 +6,7 @@ import android.os.SystemProperties
 import android.widget.Toast
 import androidx.preference.SwitchPreferenceCompat
 import com.android.settings.R
+import com.android.settings.SettingsEnums
 import com.android.settings.dashboard.DashboardFragment
 import com.android.settings.search.BaseSearchIndexProvider
 
@@ -20,6 +21,8 @@ class MorpheSettingsFragment : DashboardFragment() {
     override fun getPreferenceScreenResId(): Int = R.xml.morphe_settings
 
     override fun getLogTag(): String = "MorpheSettings"
+
+    override fun getMetricsCategory(): Int = SettingsEnums.PAGE_UNKNOWN
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         super.onCreatePreferences(savedInstanceState, rootKey)

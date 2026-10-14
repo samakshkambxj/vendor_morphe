@@ -87,10 +87,8 @@ is_applied() {
 }
 
 do_apply() {
-    if is_applied; then
-        echo "[settings-patch] already applied — nothing to do."
-        return 0
-    fi
+    # Always refresh the file copies: is_applied only tells whether the
+    # patch exists, not whether the copies match a newer kit revision.
     [ -f "$FRAGMENT_SRC" ] || die "patch files missing under $FILES_DIR"
     mkdir -p "$SETTINGS_DIR/src/com/android/settings/morphe" "$SETTINGS_DIR/res/xml"
     cp -f "$FRAGMENT_SRC" "$SETTINGS_DIR/$FRAGMENT_DST"
