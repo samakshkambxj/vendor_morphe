@@ -6,14 +6,12 @@
 #   3. downloads patched builds via update.sh when they are missing
 #
 # Never breaks envsetup: every failure degrades to a warning.
+# Re-evaluates from scratch on every source (no sticky state): sourcing twice
+# in one shell still warns about missing APKs instead of going silent.
 #   MORPHE_NO_AUTO_FETCH=1 source build/envsetup.sh  # offline / CI: skip downloads
 #   MORPHE_FETCH=1 source build/envsetup.sh          # force re-download of patched builds
 #
 # NOTE: this file is SOURCED, not executed. No `set -e`, no `exit`, only `return`.
-
-if [ -n "${_MORPHE_VENDORSETUP_DONE:-}" ] && [ -z "${MORPHE_FETCH:-}" ]; then
-    return 0 2>/dev/null || true
-fi
 
 _MORPHE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && pwd)"
 _MORPHE_YT_STOCK="$_MORPHE_DIR/common/product/app/YouTube/com.google.android.youtube.apk"
@@ -24,8 +22,17 @@ _MORPHE_MUSIC_PATCHED="$_MORPHE_DIR/common/product/etc/rv/YTMusicPatched.apk"
 echo "--- Morphe: Initializing Build Environment ---"
 
 _morphe_merge_parts() {
-    # $1 = dir, $2 = base apk name
-    if [ -f "$1/$2.part000" ] || ls "$1/$2.part"* >/dev/null 2>&1; then
+    # $1 = dir, $2 = base apk name. Merges only when the target is missing
+    # or any chunk is newer (keeps repeat sources fast, refreshes on update).
+    local found=0 stale=0 p
+    for p in "$1/$2.part"*; do
+        [ -e "$p" ] || continue
+        found=1
+        if [ ! -s "$1/$2" ] || [ "$p" -nt "$1/$2" ]; then
+            stale=1
+        fi
+    done
+    if [ "$found" -eq 1 ] && [ "$stale" -eq 1 ]; then
         echo "Merging: $2 in $1"
         if cat "$1/$2.part"* > "$1/$2"; then
             echo "Successfully merged $2"
@@ -38,7 +45,8 @@ _morphe_merge_parts() {
 _morphe_extract_libs() {
     # $1 = app dir, $2 = apk name — stock APKs ship arm64-v8a libs that must
     # sit next to the installed APK as lib/arm64 for the runtime linker.
-    if [ -s "$1/$2" ]; then
+    # Skips when already extracted (keeps repeat sources fast).
+    if [ -s "$1/$2" ] && { [ ! -d "$1/lib/arm64" ] || [ -z "$(ls -A "$1/lib/arm64" 2>/dev/null)" ]; }; then
         if ! command -v unzip >/dev/null 2>&1; then
             echo "WARNING: 'unzip' not found — cannot extract libs for $2"
             return 0
@@ -93,5 +101,4 @@ fi
 
 echo "--- Morphe: Setup Complete ---"
 
-_MORPHE_VENDORSETUP_DONE=1
 return 0 2>/dev/null || true
