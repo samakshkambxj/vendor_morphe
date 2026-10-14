@@ -64,6 +64,8 @@ the same base version from APKMirror.
 cd vendor/morphe
 ./update.sh --stock-yt /path/to/youtube-base.apk --stock-music /path/to/music-base.apk
 # patched-only refresh:  ./update.sh
+# local modules (e.g. from a builder checkout's build.sh run, per app or both):
+#   ./update.sh --yt-module /path/to/yt-module.zip --music-module /path/to/music-module.zip
 # pin builder release:   TAG=<tag> ./update.sh
 # alternate builder:     REPO=<owner/repo> ./update.sh
 ```
