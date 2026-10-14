@@ -1,7 +1,11 @@
 # vendor/morphe/common/common-vendor.mk — prebuilt module list.
+# MORPHE_INCLUDE_APPS (default true, set before inheriting morphe.mk) is the
+# master switch: false drops all four app modules and their init scripts.
 
 PRODUCT_SOONG_NAMESPACES += \
     vendor/morphe/morphemanager
+
+ifeq ($(MORPHE_INCLUDE_APPS),true)
 
 # YouTube/YTMusic modules always exist: stock install in stock mode,
 # patched-direct install in stockless mode (see common/Android.mk).
@@ -31,3 +35,5 @@ ifneq ($(wildcard vendor/morphe/common/product/app/YTMusic/lib/arm64/*.so),)
 PRODUCT_PACKAGES += \
     YTMusic_libdir
 endif
+
+endif # MORPHE_INCLUDE_APPS

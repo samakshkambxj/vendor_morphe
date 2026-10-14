@@ -128,6 +128,18 @@ MORPHE_INCLUDE_MANAGER := false
 $(call inherit-product, vendor/morphe/products/morphe.mk)
 ```
 
+To drop the patched apps entirely (YouTube, YT Music, their lib dirs and
+init scripts — e.g. a vanilla build flavor without them) while keeping the
+tree inherited:
+
+```make
+MORPHE_INCLUDE_APPS := false
+$(call inherit-product, vendor/morphe/products/morphe.mk)
+```
+
+Both flags default to on and are independent; set either or both before
+the inherit line.
+
 ### Stock vs stockless (automatic, per app)
 
 The tree detects each stock APK with `wildcard` at build time — no flags:
