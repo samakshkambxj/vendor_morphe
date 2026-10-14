@@ -14,10 +14,9 @@
 # spoof — wrong variant for this tree.) The largest APK in each module is
 # staged as common/product/etc/rv/{YTPatched,YTMusicPatched}.apk.
 #
-# Stock builds: cannot be auto-downloaded (redistribution). Supply them via
-# flags or env, e.g. APKs matching the patched base version from APKMirror,
-# or pulled from a device with adb. They install as the signature source
-# that the patched builds mount over at boot.
+# Stock builds: cannot be auto-downloaded (redistribution) and OPTIONAL.
+# Omit them on stockless ROMs (no Google apps in-tree): the patched build
+# then installs directly as the app instead of mounting over stock.
 #
 # Usage:
 #   ./update.sh                                                  # patched only (latest)

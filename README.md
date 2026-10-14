@@ -55,10 +55,17 @@ vendor/morphe/
 
 ## 2. Populate APKs
 
-Patched builds auto-fetch on envsetup (see §3). Stock builds must be
-supplied once — they can't be auto-downloaded (redistribution). Use APKs
-matching the patched base version: pull from a device (`adb pull`) or grab
-the same base version from APKMirror.
+Patched builds auto-fetch on envsetup (see §3). Stock builds are **optional**:
+supply them only if you want mount mode (toggleable stock/patched); on
+stockless ROMs skip this entirely and the patched builds install directly
+as the apps (see §4).
+
+When supplying stock, use APKs matching the patched base version: pull
+`base.apk` from a device (`adb pull $(adb shell pm path
+com.google.android.youtube | cut -d: -f2)`) or grab the same base version
+(arm64 nodpi, plain APK, not `.apkm` bundles) from APKMirror. E.g. for
+patched bases YouTube `v21.20.405` / YT Music `v9.20.53`, those exact
+versions are on APKMirror.
 
 ```bash
 cd vendor/morphe
@@ -110,8 +117,34 @@ $(call inherit-product, vendor/morphe/products/morphe.mk)
 include vendor/morphe/products/board.mk
 ```
 
-Then build as usual. Output: stock apps in `/product/app/...`, patched
-blobs in `/product/etc/rv/...`, init script in `/product/etc/init/...`.
+Then build as usual.
+
+### Stock vs stockless (automatic, per app)
+
+The tree detects each stock APK with `wildcard` at build time — no flags:
+
+- **Stock mode** (stock APK supplied): stock installs as the signature
+  source, patched ships under `/product/etc/rv/...`, init bind-mounts it
+  over stock at boot, MorpheManager toggles it. Output also includes the
+  init script and arm64 lib dir for that app.
+- **Stockless mode** (no stock APK — vanilla ROMs with no Google apps):
+  the patched build installs directly as
+  `/product/app/YouTube/com.google.android.youtube.apk` (same for Music);
+  PackageManager extracts its libs itself. No mount, no init script, no
+  lib staging for that app. The MorpheManager toggle has nothing to swap
+  in this mode (documented in-app behavior is mount-only).
+
+You can mix: stock YouTube + stockless Music, or vice versa.
+
+Caveats for stockless:
+
+- **Do not flash a GApps package that also ships YouTube/Music**
+  afterwards: same package name, different (builder vs Google) signature
+  → install conflict. Use a GApps variant without those apps, or supply
+  stock bases and run stock mode instead.
+- **Login needs GMS or system microG.** A vanilla ROM with neither gives
+  a logged-out experience (same as any root install on degoogled ROMs) —
+  add system microG (`com.google.android.gms`) if you want sign-in.
 
 ## 5. ROM-side requirements (do these or the mod misbehaves)
 
@@ -137,8 +170,8 @@ Per ROM release cycle: re-run `./update.sh` (with matching stock APKs),
 
 ## Files
 
-- `products/morphe.mk` — packages, sepolicy include, init copy, default property
-- `common/Android.mk` — stock/patched/libdir prebuilt modules
-- `common/product/etc/init/init.morphe.rc` — boot bind-mount, property-gated
+- `products/morphe.mk` — packages, sepolicy include, per-app init copy, default property
+- `common/Android.mk` — stock/patched/libdir modules, or patched-direct install when stock absent
+- `common/product/etc/init/init.morphe.{yt,music}.rc` — boot bind-mounts, one per app, property-gated
 - `sepolicy/` — `morphe_init` (mount), `morphe_app` (manager domain), `morphe_prop`
 - `morphemanager/` — toggle UI + reboot, platform priv-app + whitelist

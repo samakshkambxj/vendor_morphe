@@ -95,9 +95,11 @@ if [ "$_morphe_need_fetch" -eq 1 ]; then
     fi
 fi
 
-# Stock APKs cannot be auto-downloaded (redistribution); they must be supplied.
-[ -s "$_MORPHE_YT_STOCK" ] || echo "WARNING: stock YouTube APK missing — place it at common/product/app/YouTube/com.google.android.youtube.apk (see README)."
-[ -s "$_MORPHE_MUSIC_STOCK" ] || echo "WARNING: stock YT Music APK missing — place it at common/product/app/YTMusic/com.google.android.apps.youtube.music.apk (see README)."
+# Stock APKs cannot be auto-downloaded (redistribution) and are OPTIONAL:
+# stockless ROMs (no Google apps in-tree) skip them and the patched build
+# installs directly as the app — mount mode needs a stock base to swap over.
+[ -s "$_MORPHE_YT_STOCK" ] || echo "NOTE: no stock YouTube APK — stockless mode, patched build installs directly (mount mode needs a stock base; see README)."
+[ -s "$_MORPHE_MUSIC_STOCK" ] || echo "NOTE: no stock YT Music APK — stockless mode, patched build installs directly (mount mode needs a stock base; see README)."
 
 echo "--- Morphe: Setup Complete ---"
 

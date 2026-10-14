@@ -1,0 +1,14 @@
+# vendor/morphe init script — swaps the patched YouTube build over the stock
+# path at boot. Gated by persist.sys.morphe.mod so the mod is a runtime
+# toggle: stock behavior is one property flip + reboot away. Runs at
+# boot_completed (after package scan) so install-time signatures stay stock
+# while the running code is patched. Only shipped when a stock YouTube base
+# exists (see products/morphe.mk); stockless builds install patched directly
+# and need no mount. MorpheManager owns the toggle UI.
+
+on property:sys.boot_completed=1 && property:persist.sys.morphe.mod=true
+    # Unmount stale mount from a previous boot, if any
+    umount /product/app/YouTube/com.google.android.youtube.apk
+
+    # Patched YouTube over stock YouTube
+    mount none /product/etc/rv/YTPatched.apk /product/app/YouTube/com.google.android.youtube.apk bind

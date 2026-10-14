@@ -1,0 +1,11 @@
+# vendor/morphe init script — swaps the patched YT Music build over the stock
+# path at boot. Same mechanism and gating as init.morphe.yt.rc. Only shipped
+# when a stock YT Music base exists (see products/morphe.mk); stockless
+# builds install patched directly and need no mount.
+
+on property:sys.boot_completed=1 && property:persist.sys.morphe.mod=true
+    # Unmount stale mount from a previous boot, if any
+    umount /product/app/YTMusic/com.google.android.apps.youtube.music.apk
+
+    # Patched YT Music over stock YT Music
+    mount none /product/etc/rv/YTMusicPatched.apk /product/app/YTMusic/com.google.android.apps.youtube.music.apk bind

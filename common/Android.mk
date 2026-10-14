@@ -1,13 +1,16 @@
 # vendor/morphe — stock + patched prebuilts.
 #
-# Design: stock APKs are installed as regular product apps (valid stock
-# signatures at install/scan time), patched APKs ship as inert data files
-# under product/etc/rv, and init.morphe.rc bind-mounts the patched file
-# over the stock path at boot. Because the swap happens below
-# PackageManager, no re-signing or dexpreopt of the 100MB+ patched blobs
-# is needed at build time. ETC class is deliberate: it installs the file
-# byte-for-byte without APK processing.
+# Per-app mode selection: when the stock APK is supplied it is installed as
+# the signature source and the patched build mounts over it at boot; when it
+# is absent (stockless ROMs ship no Google apps) the patched build IS the
+# installed app. Module names stay identical across modes; only the
+# mount-only modules (YTPatched/YTMusicPatched/libdirs) exist in stock mode
+# (see common-vendor.mk). ETC class installs files byte-for-byte with no
+# re-signing or dexpreopt either way.
 LOCAL_PATH := $(call my-dir)
+
+# ---- YouTube ----
+ifneq ($(wildcard $(LOCAL_PATH)/product/app/YouTube/com.google.android.youtube.apk),)
 
 # Stock YouTube (install-time signature source)
 include $(CLEAR_VARS)
@@ -19,7 +22,7 @@ LOCAL_INSTALLED_MODULE_STEM := com.google.android.youtube.apk
 LOCAL_PRODUCT_MODULE := true
 include $(BUILD_PREBUILT)
 
-# Patched YouTube (bind-mounted over stock at boot, see init.morphe.rc)
+# Patched YouTube (bind-mounted over stock at boot, see init.morphe.yt.rc)
 include $(CLEAR_VARS)
 LOCAL_MODULE := YTPatched
 LOCAL_SRC_FILES := product/etc/rv/YTPatched.apk
@@ -42,6 +45,24 @@ LOCAL_POST_INSTALL_CMD := \
     mkdir -p $(LOCAL_MODULE_PATH); \
     cp -rf $(LOCAL_PATH)/product/app/YouTube/lib/* $(LOCAL_MODULE_PATH)/
 include $(BUILD_PREBUILT)
+
+else
+
+# Stockless: patched build installed directly as the YouTube app.
+# PackageManager extracts its native libs itself, so no libdir is needed.
+include $(CLEAR_VARS)
+LOCAL_MODULE := YouTube
+LOCAL_SRC_FILES := product/etc/rv/YTPatched.apk
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT)/app/YouTube
+LOCAL_INSTALLED_MODULE_STEM := com.google.android.youtube.apk
+LOCAL_PRODUCT_MODULE := true
+include $(BUILD_PREBUILT)
+
+endif
+
+# ---- YT Music ----
+ifneq ($(wildcard $(LOCAL_PATH)/product/app/YTMusic/com.google.android.apps.youtube.music.apk),)
 
 # Stock YT Music (install-time signature source)
 include $(CLEAR_VARS)
@@ -75,3 +96,17 @@ LOCAL_POST_INSTALL_CMD := \
     mkdir -p $(LOCAL_MODULE_PATH); \
     cp -rf $(LOCAL_PATH)/product/app/YTMusic/lib/* $(LOCAL_MODULE_PATH)/
 include $(BUILD_PREBUILT)
+
+else
+
+# Stockless: patched build installed directly as the YT Music app.
+include $(CLEAR_VARS)
+LOCAL_MODULE := YTMusic
+LOCAL_SRC_FILES := product/etc/rv/YTMusicPatched.apk
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT)/app/YTMusic
+LOCAL_INSTALLED_MODULE_STEM := com.google.android.apps.youtube.music.apk
+LOCAL_PRODUCT_MODULE := true
+include $(BUILD_PREBUILT)
+
+endif
