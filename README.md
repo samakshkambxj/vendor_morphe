@@ -255,5 +255,5 @@ shapes differ per tree, so the script shows instead of guessing).
 - `common/Android.mk` — stock/patched/libdir modules per app, stock/stockless aware
 - `common/product/etc/init/init.morphe.{yt,music,reddit}.rc` — boot bind-mounts, one per app, property-gated
 - `sepolicy/` — `morphe_init` (mount), `morphe_app` (manager domain + net), `morphe_prop` (3 toggle props)
-- `morphemanager/` — M3E manager app (per-app toggles, live mount state, override alerts, update center), platform priv-app + whitelist
+- `morphemanager/` — M3E manager app (per-app toggles, live mount state, override alerts, update center with changelog + per-app ignore + setup status), platform priv-app + whitelist
 - `settings-patch/` — ROM Settings fragment + screen XML + auto-apply script (prompted on envsetup)
