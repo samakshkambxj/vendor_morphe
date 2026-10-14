@@ -158,21 +158,21 @@ if [ ! -x "$_MORPHE_PATCHER" ]; then
     [ -t 0 ] && echo "[morphe] settings-patch tool missing — resync vendor/morphe to enable the ROM Settings offer."
 elif [ -d "$_MORPHE_ROMROOT/packages/apps/Settings" ] \
         && [ -z "${MORPHE_NO_SETTINGS_PATCH:-}" ]; then
-    if ! ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --check >/dev/null 2>&1; then
-        if [ "${MORPHE_SETTINGS_AUTO:-0}" = "1" ]; then
+    if ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --check >/dev/null 2>&1; then
+        echo "[morphe] ROM Settings integration: applied."
+    elif [ "${MORPHE_SETTINGS_AUTO:-0}" = "1" ]; then
+        ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --apply || true
+    elif [ -t 0 ]; then
+        printf '[morphe] Add the Morphe screen to ROM Settings? [y/N] '
+        read -r _morphe_ans || _morphe_ans=""
+        if [[ "$_morphe_ans" == [yY]* ]]; then
             ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --apply || true
-        elif [ -t 0 ]; then
-            printf '[morphe] Add the Morphe screen to ROM Settings? [y/N] '
-            read -r _morphe_ans || _morphe_ans=""
-            if [[ "$_morphe_ans" == [yY]* ]]; then
-                ROM_ROOT="$_MORPHE_ROMROOT" bash "$_MORPHE_PATCHER" --apply || true
-            else
-                echo "[morphe] skipped (re-run: vendor/morphe/settings-patch/apply-settings-patch.sh --apply)."
-            fi
         else
-            echo "[morphe] ROM Settings patch available (non-interactive shell, not prompting):"
-            echo "         vendor/morphe/settings-patch/apply-settings-patch.sh --apply"
+            echo "[morphe] skipped (re-run: vendor/morphe/settings-patch/apply-settings-patch.sh --apply)."
         fi
+    else
+        echo "[morphe] ROM Settings patch missing (non-interactive shell, not prompting):"
+        echo "         vendor/morphe/settings-patch/apply-settings-patch.sh --apply"
     fi
 fi
 
