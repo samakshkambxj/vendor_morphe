@@ -13,11 +13,27 @@
 #
 # NOTE: this file is SOURCED, not executed. No `set -e`, no `exit`, only `return`.
 
+# Per-app env mirrors of the make flags (default on): export the same names
+# to keep envsetup from fetching/warning about apps you excluded in make.
+#   MORPHE_INCLUDE_APPS=false MORPHE_INCLUDE_REDDIT=false source build/envsetup.sh
+_morphe_app_on() {
+    # $1 = youtube|music|reddit
+    [ "${MORPHE_INCLUDE_APPS:-true}" = "true" ] || return 1
+    case "$1" in
+        youtube) [ "${MORPHE_INCLUDE_YOUTUBE:-true}" = "true" ] ;;
+        music) [ "${MORPHE_INCLUDE_MUSIC:-true}" = "true" ] ;;
+        reddit) [ "${MORPHE_INCLUDE_REDDIT:-true}" = "true" ] ;;
+        *) return 1 ;;
+    esac
+}
+
 _MORPHE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && pwd)"
 _MORPHE_YT_STOCK="$_MORPHE_DIR/common/product/app/YouTube/com.google.android.youtube.apk"
 _MORPHE_MUSIC_STOCK="$_MORPHE_DIR/common/product/app/YTMusic/com.google.android.apps.youtube.music.apk"
+_MORPHE_REDDIT_STOCK="$_MORPHE_DIR/common/product/app/Reddit/com.reddit.frontpage.apk"
 _MORPHE_YT_PATCHED="$_MORPHE_DIR/common/product/etc/rv/YTPatched.apk"
 _MORPHE_MUSIC_PATCHED="$_MORPHE_DIR/common/product/etc/rv/YTMusicPatched.apk"
+_MORPHE_REDDIT_PATCHED="$_MORPHE_DIR/common/product/etc/rv/RedditPatched.apk"
 
 echo "--- Morphe: Initializing Build Environment ---"
 
@@ -58,7 +74,10 @@ _morphe_extract_libs() {
         fi
     done
     [ -n "$apk" ] || return 0
-    if [ -d "$app_dir/lib/arm64" ] && [ -n "$(ls -A "$app_dir/lib/arm64" 2>/dev/null)" ]; then
+    # Skip when already populated and newer than the source APK; re-extract
+    # when the APK is newer (base update) so stale .so files never ship.
+    if [ -d "$app_dir/lib/arm64" ] && [ -n "$(ls -A "$app_dir/lib/arm64" 2>/dev/null)" ] \
+            && [ ! "$apk" -nt "$app_dir/lib/arm64" ]; then
         return 0
     fi
     if ! command -v unzip >/dev/null 2>&1; then
@@ -82,16 +101,21 @@ _morphe_extract_libs() {
 
 _morphe_merge_parts "$_MORPHE_DIR/common/product/etc/rv" "YTPatched.apk"
 _morphe_merge_parts "$_MORPHE_DIR/common/product/etc/rv" "YTMusicPatched.apk"
+_morphe_merge_parts "$_MORPHE_DIR/common/product/etc/rv" "RedditPatched.apk"
 _morphe_merge_parts "$_MORPHE_DIR/common/product/app/YouTube" "com.google.android.youtube.apk"
 _morphe_merge_parts "$_MORPHE_DIR/common/product/app/YTMusic" "com.google.android.apps.youtube.music.apk"
+_morphe_merge_parts "$_MORPHE_DIR/common/product/app/Reddit" "com.reddit.frontpage.apk"
 
-_morphe_extract_libs "$_MORPHE_DIR/common/product/app/YouTube" "$_MORPHE_YT_STOCK" "$_MORPHE_YT_PATCHED"
-_morphe_extract_libs "$_MORPHE_DIR/common/product/app/YTMusic" "$_MORPHE_MUSIC_STOCK" "$_MORPHE_MUSIC_PATCHED"
+_morphe_app_on youtube && _morphe_extract_libs "$_MORPHE_DIR/common/product/app/YouTube" "$_MORPHE_YT_STOCK" "$_MORPHE_YT_PATCHED"
+_morphe_app_on music && _morphe_extract_libs "$_MORPHE_DIR/common/product/app/YTMusic" "$_MORPHE_MUSIC_STOCK" "$_MORPHE_MUSIC_PATCHED"
+_morphe_app_on reddit && _morphe_extract_libs "$_MORPHE_DIR/common/product/app/Reddit" "$_MORPHE_REDDIT_STOCK" "$_MORPHE_REDDIT_PATCHED"
 
-# Patched builds: fetch when missing (or forced), unless opted out.
+# Patched builds: fetch when a wanted app's build is missing (or forced),
+# unless opted out.
 _morphe_need_fetch=0
-[ -s "$_MORPHE_YT_PATCHED" ] || _morphe_need_fetch=1
-[ -s "$_MORPHE_MUSIC_PATCHED" ] || _morphe_need_fetch=1
+_morphe_app_on youtube && { [ -s "$_MORPHE_YT_PATCHED" ] || _morphe_need_fetch=1; }
+_morphe_app_on music && { [ -s "$_MORPHE_MUSIC_PATCHED" ] || _morphe_need_fetch=1; }
+_morphe_app_on reddit && { [ -s "$_MORPHE_REDDIT_PATCHED" ] || _morphe_need_fetch=1; }
 [ -n "${MORPHE_FETCH:-}" ] && _morphe_need_fetch=1
 
 if [ "$_morphe_need_fetch" -eq 1 ]; then
@@ -111,8 +135,16 @@ fi
 # Stock APKs cannot be auto-downloaded (redistribution) and are OPTIONAL:
 # stockless ROMs (no Google apps in-tree) skip them and the patched build
 # installs directly as the app — mount mode needs a stock base to swap over.
-[ -s "$_MORPHE_YT_STOCK" ] || echo "NOTE: no stock YouTube APK — stockless mode, patched build installs directly (mount mode needs a stock base; see README)."
-[ -s "$_MORPHE_MUSIC_STOCK" ] || echo "NOTE: no stock YT Music APK — stockless mode, patched build installs directly (mount mode needs a stock base; see README)."
+# Silent for apps excluded via the MORPHE_INCLUDE_* env mirrors.
+if _morphe_app_on youtube && [ ! -s "$_MORPHE_YT_STOCK" ]; then
+    echo "NOTE: no stock YouTube APK — stockless mode, patched build installs directly (mount mode needs a stock base; see README)."
+fi
+if _morphe_app_on music && [ ! -s "$_MORPHE_MUSIC_STOCK" ]; then
+    echo "NOTE: no stock YT Music APK — stockless mode, patched build installs directly (mount mode needs a stock base; see README)."
+fi
+if _morphe_app_on reddit && [ ! -s "$_MORPHE_REDDIT_STOCK" ]; then
+    echo "NOTE: no stock Reddit APK — stockless mode, patched build installs directly (mount mode needs a stock base; see README)."
+fi
 
 echo "--- Morphe: Setup Complete ---"
 

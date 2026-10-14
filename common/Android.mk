@@ -86,6 +86,44 @@ include $(BUILD_PREBUILT)
 
 endif
 
+# ---- Reddit ----
+ifneq ($(wildcard $(LOCAL_PATH)/product/app/Reddit/com.reddit.frontpage.apk),)
+
+# Stock Reddit (install-time signature source)
+include $(CLEAR_VARS)
+LOCAL_MODULE := Reddit
+LOCAL_SRC_FILES := product/app/Reddit/com.reddit.frontpage.apk
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT)/app/Reddit
+LOCAL_INSTALLED_MODULE_STEM := com.reddit.frontpage.apk
+LOCAL_PRODUCT_MODULE := true
+include $(BUILD_PREBUILT)
+
+# Patched Reddit (bind-mounted over stock at boot, see init.morphe.reddit.rc)
+include $(CLEAR_VARS)
+LOCAL_MODULE := RedditPatched
+LOCAL_SRC_FILES := product/etc/rv/RedditPatched.apk
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_TAGS := optional
+LOCAL_PRODUCT_MODULE := true
+LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT)/etc/rv
+LOCAL_INSTALLED_MODULE_STEM := RedditPatched.apk
+include $(BUILD_PREBUILT)
+
+else
+
+# Stockless: patched build installed directly as the Reddit app.
+include $(CLEAR_VARS)
+LOCAL_MODULE := Reddit
+LOCAL_SRC_FILES := product/etc/rv/RedditPatched.apk
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT)/app/Reddit
+LOCAL_INSTALLED_MODULE_STEM := com.reddit.frontpage.apk
+LOCAL_PRODUCT_MODULE := true
+include $(BUILD_PREBUILT)
+
+endif
+
 # ---- Native lib dirs (both modes) ----
 # Module APKs keep their .so files Deflated with extraction disabled, so
 # PackageManager never materializes them and startup dies with
@@ -116,5 +154,18 @@ LOCAL_PREBUILT_MODULE_FILE := $(LOCAL_PATH)/product/app/YTMusic/lib/placeholder.
 LOCAL_POST_INSTALL_CMD := \
     mkdir -p $(LOCAL_MODULE_PATH); \
     cp -rf $(LOCAL_PATH)/product/app/YTMusic/lib/* $(LOCAL_MODULE_PATH)/
+include $(BUILD_PREBUILT)
+endif
+
+ifneq ($(wildcard $(LOCAL_PATH)/product/app/Reddit/lib/arm64/*.so),)
+include $(CLEAR_VARS)
+LOCAL_MODULE := Reddit_libdir
+LOCAL_MODULE_CLASS := ETC
+LOCAL_PRODUCT_MODULE := true
+LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT)/app/Reddit/lib
+LOCAL_PREBUILT_MODULE_FILE := $(LOCAL_PATH)/product/app/Reddit/lib/placeholder.txt
+LOCAL_POST_INSTALL_CMD := \
+    mkdir -p $(LOCAL_MODULE_PATH); \
+    cp -rf $(LOCAL_PATH)/product/app/Reddit/lib/* $(LOCAL_MODULE_PATH)/
 include $(BUILD_PREBUILT)
 endif

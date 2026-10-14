@@ -1,8 +1,8 @@
 # vendor/morphe — Morphe-patched YouTube vendor tree
 
 Root-replacement prebuilts for custom ROMs (A16 / A17, AOSP/Lineage based).
-Ships **stock** YouTube + YT Music as system apps and bind-mounts **patched**
-(Morphe) builds over them at boot. One YouTube icon, stock package names,
+Ships **stock** YouTube, YT Music and Reddit as system apps and bind-mounts
+**patched** (Morphe) builds over them at boot. One YouTube icon, stock package names,
 works with real Play Services or system microG — no parallel packages, no
 per-app MicroG login.
 
@@ -15,9 +15,11 @@ GmsCore-spoof patch, which is exactly what a system-level install wants.
 ```
 common/product/app/YouTube/com.google.android.youtube.apk   stock, installed as a product app
 common/product/app/YTMusic/com.google.android.apps.youtube.music.apk
+common/product/app/Reddit/com.reddit.frontpage.apk
 common/product/etc/rv/YTPatched.apk                         patched, shipped as inert data
 common/product/etc/rv/YTMusicPatched.apk
-common/product/etc/init/init.morphe.rc                      boot swap, gated by property
+common/product/etc/rv/RedditPatched.apk
+common/product/etc/init/init.morphe.{yt,music,reddit}.rc    boot swap, gated by property
 ```
 
 At install/scan time PackageManager sees valid stock signatures. At
@@ -69,10 +71,10 @@ versions are on APKMirror.
 
 ```bash
 cd vendor/morphe
-./update.sh --stock-yt /path/to/youtube-base.apk --stock-music /path/to/music-base.apk
+./update.sh --stock-yt /path/to/youtube-base.apk --stock-music /path/to/music-base.apk --stock-reddit /path/to/reddit-base.apk
 # patched-only refresh:  ./update.sh
-# local modules (e.g. from a builder checkout's build.sh run, per app or both):
-#   ./update.sh --yt-module /path/to/yt-module.zip --music-module /path/to/music-module.zip
+# local modules (e.g. from a builder checkout's build.sh run, per app or all):
+#   ./update.sh --yt-module /path/to/yt-module.zip --music-module /path/to/music-module.zip --reddit-module /path/to/reddit-module.zip
 # pin builder release:   TAG=<tag> ./update.sh
 # alternate builder:     REPO=<owner/repo> ./update.sh
 ```
@@ -140,6 +142,23 @@ $(call inherit-product, vendor/morphe/products/morphe.mk)
 Both flags default to on and are independent; set either or both before
 the inherit line.
 
+Per-app switches (effective inclusion is master `MORPHE_INCLUDE_APPS` AND
+the per-app flag) — drop any single app the same way:
+
+```make
+MORPHE_INCLUDE_YOUTUBE := false
+MORPHE_INCLUDE_MUSIC := false
+MORPHE_INCLUDE_REDDIT := false
+$(call inherit-product, vendor/morphe/products/morphe.mk)
+```
+
+Mirror the same names as environment when sourcing envsetup so it skips
+fetching/warning about excluded apps:
+
+```bash
+MORPHE_INCLUDE_REDDIT=false source build/envsetup.sh
+```
+
 ### Stock vs stockless (automatic, per app)
 
 The tree detects each stock APK with `wildcard` at build time — no flags:
@@ -195,6 +214,6 @@ Per ROM release cycle: re-run `./update.sh` (with matching stock APKs),
 
 - `products/morphe.mk` — packages, sepolicy include, per-app init copy, default property
 - `common/Android.mk` — stock/patched/libdir modules, or patched-direct install when stock absent
-- `common/product/etc/init/init.morphe.{yt,music}.rc` — boot bind-mounts, one per app, property-gated
+- `common/product/etc/init/init.morphe.{yt,music,reddit}.rc` — boot bind-mounts, one per app, property-gated
 - `sepolicy/` — `morphe_init` (mount), `morphe_app` (manager domain), `morphe_prop`
 - `morphemanager/` — toggle UI + reboot, platform priv-app + whitelist
