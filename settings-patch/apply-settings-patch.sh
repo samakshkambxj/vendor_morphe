@@ -23,7 +23,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FILES_DIR="$SCRIPT_DIR/files"
-ROM_ROOT="${ROM_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+ROM_ROOT="${ROM_ROOT:-$(cd "$SCRIPT_DIR/../../.." && pwd)}"
 SETTINGS_DIR="${SETTINGS_DIR:-$ROM_ROOT/packages/apps/Settings}"
 
 FRAGMENT_SRC="$FILES_DIR/src/com/android/settings/morphe/MorpheSettingsFragment.kt"

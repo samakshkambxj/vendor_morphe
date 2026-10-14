@@ -169,6 +169,9 @@ elif [ -d "$_MORPHE_ROMROOT/packages/apps/Settings" ] \
             else
                 echo "[morphe] skipped (re-run: vendor/morphe/settings-patch/apply-settings-patch.sh --apply)."
             fi
+        else
+            echo "[morphe] ROM Settings patch available (non-interactive shell, not prompting):"
+            echo "         vendor/morphe/settings-patch/apply-settings-patch.sh --apply"
         fi
     fi
 fi
