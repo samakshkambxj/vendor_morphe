@@ -23,11 +23,13 @@ common/product/etc/init/init.morphe.{yt,music,reddit}.rc    boot swap, gated by 
 ```
 
 At install/scan time PackageManager sees valid stock signatures. At
-`boot_completed`, `init.morphe.rc` bind-mounts the patched file over the
-stock path, so the running code is patched. The mount is gated by
-`persist.sys.morphe.mod` (default `true`) — flipping it off + rebooting
-restores pure stock behavior. `MorpheManager` (privileged toggle app) owns
-the switch.
+`boot_completed`, the per-app init scripts bind-mount the patched files
+over the stock paths, so the running code is patched. Each mount is gated
+by its own property (`persist.sys.morphe.{yt,music,reddit}`, default
+`true`) — flipping one off + rebooting restores pure stock behavior for
+that app. `MorpheManager` (privileged manager app) owns the per-app
+switches, shows live mount state, warns when a store update shadows a
+patched build, and runs an update center tracking new builder bases.
 
 Because the swap happens below PackageManager, the 100MB+ patched blobs
 need no re-signing or dexpreopt at build time — they are installed with
@@ -39,11 +41,11 @@ the `ETC` class byte-for-byte.
 vendor/morphe/
   products/morphe.mk        # entry point — inherit this
   products/board.mk         # BoardConfig hook — include this
-  common/Android.mk         # 6 prebuilt modules (stock/patched/libdir x YT/Music)
-  common/common-vendor.mk   # PRODUCT_PACKAGES + Soong namespace
-  common/product/...        # APKs, libs, init script (see above)
-  morphemanager/            # privileged toggle app (platform-signed)
-  sepolicy/                 # init mount rules, app domain, property type
+  common/Android.mk         # stock/patched/libdir modules per app (stock/stockless aware)
+  common/common-vendor.mk   # PRODUCT_PACKAGES + Soong namespace + include flags
+  common/product/...        # APKs, libs, init scripts (see above)
+  morphemanager/            # privileged manager app: toggles, live state, update center
+  sepolicy/                 # init mount rules, app domain (+net), property type
   vendorsetup.sh            # envsetup hook: merge parts, extract libs, fetch patched
   update.sh                 # patched downloader + stock stager
   split-apk.sh              # chunk APKs for git before committing
@@ -121,9 +123,8 @@ include vendor/morphe/products/board.mk
 
 Then build as usual.
 
-To drop the MorpheManager toggle app (it only controls the boot
-bind-mount, so stockless builds gain nothing from it), set this in your
-device/ROM makefile *before* the inherit line:
+To drop the MorpheManager app entirely, set this in your device/ROM
+makefile *before* the inherit line:
 
 ```make
 MORPHE_INCLUDE_MANAGER := false
@@ -169,12 +170,13 @@ The tree detects each stock APK with `wildcard` at build time — no flags:
   init script and arm64 lib dir for that app.
 - **Stockless mode** (no stock APK — vanilla ROMs with no Google apps):
   the patched build installs directly as
-  `/product/app/YouTube/com.google.android.youtube.apk` (same for Music),
-  with its native lib set staged alongside in `lib/arm64` (module APKs
-  ship Deflated libs with extraction disabled, so the tree materializes
-  them — otherwise startup dies with `UnsatisfiedLinkError`). No mount,
-  no init script for that app. The MorpheManager toggle has nothing to
-  swap in this mode (documented in-app behavior is mount-only).
+  `/product/app/YouTube/com.google.android.youtube.apk` (same for Music
+  and Reddit), with its native lib set staged alongside in `lib/arm64`
+  (module APKs ship Deflated libs with extraction disabled, so the tree
+  materializes them — otherwise startup dies with `UnsatisfiedLinkError`).
+  No mount, no init script for that app. In this mode the manager's
+  toggles lock on with an explanatory note (there is no stock build to
+  restore); its update center and override detection still work.
 
 You can mix: stock YouTube + stockless Music, or vice versa.
 
@@ -190,19 +192,23 @@ Caveats for stockless:
 
 ## 5. ROM-side requirements (do these or the mod misbehaves)
 
-- **Detach from Play Store updates.** Play will otherwise replace the
-  mounted patched build with stock on first update. Detach
-  `com.google.android.youtube` and
-  `com.google.android.apps.youtube.music` — via your ROM's update-block
-  mechanism (framework-side package denylist) or a user-side detach module
-  (Magisk/KernelSU). Without this, the mod silently unpatches itself.
+- **Detach from Play Store updates.** In stock mode Play can replace the
+  mounted patched build with stock on first update (the update shadows the
+  system app, silently disabling the mod). Detach
+  `com.google.android.youtube`,
+  `com.google.android.apps.youtube.music` and `com.reddit.frontpage` — via
+  your ROM's update-block mechanism (framework-side package denylist) or a
+  user-side detach module (Magisk/KernelSU). MorpheManager also watches for
+  this and notifies when a store build shadows a patched one. (Stockless
+  builds are builder-signed, so Play updates fail loudly instead — still
+  detach to avoid the noise.)
 - **GMS.** GApps builds work as-is. Vanilla builds need system microG
   (`com.google.android.gms` as a system app). The per-app MicroG build
   (`app.revanced.android.gms`) is for non-root parallel installs and is
   NOT used here.
-- **Optional Settings toggle.** `persist.sys.morphe.mod` is world-readable
-  by design (`morphe_prop`), so a Settings switch can flip the mod the
-  same way MorpheManager does (reboot to apply).
+- **Optional Settings toggle.** `persist.sys.morphe.{yt,music,reddit}` are
+  world-readable by design (`morphe_prop`), so Settings switches can flip
+  them the same way MorpheManager does (reboot to apply).
 
 ## 6. Updating
 
@@ -210,10 +216,19 @@ Patched bases move fast — old patches break on new YouTube within weeks.
 Per ROM release cycle: re-run `./update.sh` (with matching stock APKs),
 `./split-apk.sh`, commit, rebuild. Pin `TAG` in CI for reproducible builds.
 
+On-device, MorpheManager's Updates tab tracks the same builder releases:
+daily auto-check (JobScheduler, toggleable) with notifications on new
+bases, manual check, installed-vs-latest per app, and one-tap module-zip
+downloads into Downloads. Note the boundary: the app can fetch but cannot
+apply — the system image is read-only, so getting a new base onto the
+device still means a ROM rebuild (or flashing the downloaded module zip
+with root). The manager needs `INTERNET` (auto-granted) and asks for
+notification permission on first use.
+
 ## Files
 
-- `products/morphe.mk` — packages, sepolicy include, per-app init copy, default property
-- `common/Android.mk` — stock/patched/libdir modules, or patched-direct install when stock absent
+- `products/morphe.mk` — packages, sepolicy include, per-app init copy, default properties, include flags
+- `common/Android.mk` — stock/patched/libdir modules per app, stock/stockless aware
 - `common/product/etc/init/init.morphe.{yt,music,reddit}.rc` — boot bind-mounts, one per app, property-gated
-- `sepolicy/` — `morphe_init` (mount), `morphe_app` (manager domain), `morphe_prop`
-- `morphemanager/` — toggle UI + reboot, platform priv-app + whitelist
+- `sepolicy/` — `morphe_init` (mount), `morphe_app` (manager domain + net), `morphe_prop` (3 toggle props)
+- `morphemanager/` — M3E manager app (per-app toggles, live mount state, override alerts, update center), platform priv-app + whitelist

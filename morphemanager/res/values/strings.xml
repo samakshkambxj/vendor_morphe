@@ -1,9 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Morphe</string>
-    <string name="toggle_title">Patched apps</string>
-    <string name="toggle_summary">Bind-mount patched builds over stock YouTube, YT Music and Reddit at boot</string>
+    <string name="tab_mods">Mods</string>
+    <string name="tab_updates">Updates</string>
+    <string name="mod_youtube">YouTube</string>
+    <string name="mod_music">YT Music</string>
+    <string name="mod_reddit">Reddit</string>
+    <string name="state_active">Patched build active</string>
+    <string name="state_pending">Reboot to apply change</string>
+    <string name="state_stock">Stock build active</string>
+    <string name="state_missing">Not installed</string>
+    <string name="direct_note">Always on — direct install has no stock build to restore</string>
+    <string name="overridden_title">Patched app was replaced</string>
+    <string name="overridden_body">%1$s was updated outside the ROM image — the patched build is no longer running. Update the ROM to restore it.</string>
     <string name="reboot">Reboot to apply</string>
     <string name="reboot_done">Rebooting…</string>
     <string name="reboot_manual">Could not reboot automatically — reboot manually to apply.</string>
+    <string name="check_now">Check for updates</string>
+    <string name="checking">Checking…</string>
+    <string name="auto_check">Automatic daily check</string>
+    <string name="auto_check_summary">Check the builder releases once a day and notify on new bases</string>
+    <string name="up_to_date">Up to date</string>
+    <string name="update_available">Update available</string>
+    <string name="download">Download module</string>
+    <string name="download_started">Download started — find it in Downloads</string>
+    <string name="not_installed">Not installed on this device</string>
+    <string name="installed_label">Installed: %1$s</string>
+    <string name="latest_label">Latest: %1$s</string>
+    <string name="last_checked">Last checked: %1$s</string>
+    <string name="never_checked">Never checked</string>
+    <string name="check_failed">Check failed — will retry on schedule</string>
+    <string name="notify_channel">Update checks</string>
+    <string name="notify_update_title">New patched base available</string>
+    <string name="notify_update_body">%1$s: installed %2$s, latest %3$s. Update the ROM to get it.</string>
+    <string name="notify_override_title">Patched app replaced</string>
+    <string name="allow_notifications">Allow notifications to hear about new bases</string>
+    <string name="grant">Allow</string>
 </resources>

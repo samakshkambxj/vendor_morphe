@@ -20,6 +20,9 @@ allow morphe_app system_app_data_file:{ file lnk_file } create_file_perms;
 
 allow morphe_app system_server:binder { call transfer };
 
+# update center: builder release checks + module downloads
+netdomain(morphe_app)
+
 # read/write the persist.sys.morphe.mod toggle
 get_prop(morphe_app, morphe_prop)
 set_prop(morphe_app, morphe_prop)

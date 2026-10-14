@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// MorpheManager: privileged toggle for the bind-mount mod.
-// Deliberately dependency-light (framework views only) so it builds on
-// any AOSP/Lineage tree without extra static libs.
+// MorpheManager: per-app mod toggles, live mount state, Play-override
+// detection and an update center for the patched builds. Material3
+// Expressive styling built only on stable M3 APIs (no experimental
+// expressive-only components) so it compiles against any tree-shipped M3.
 android_app {
     name: "MorpheManager",
 
     defaults: ["platform_app_defaults"],
 
     srcs: [
-        "src/**/*.java",
+        "src/**/*.kt",
     ],
 
     certificate: "platform",
@@ -19,6 +20,23 @@ android_app {
     platform_apis: true,
     system_ext_specific: true,
     privileged: true,
+
+    static_libs: [
+        "androidx.activity_activity-compose",
+        "androidx.compose.foundation_foundation",
+        "androidx.compose.material3_material3",
+        "androidx.compose.material_material-icons-core",
+        "androidx.compose.runtime_runtime",
+        "androidx.compose.ui_ui",
+        "kotlinx-coroutines-core",
+    ],
+
+    kotlincflags: [
+        "-Xjvm-default=all",
+        "-opt-in=kotlin.RequiresOptIn",
+        "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+        "-P plugin:androidx.compose.compiler.plugins.kotlin:sourceInformation=true",
+    ],
 
     required: [
         "privapp_whitelist_com.android.morphe.xml",
