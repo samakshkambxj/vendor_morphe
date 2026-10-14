@@ -1,0 +1,33 @@
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// MorpheManager: privileged toggle for the bind-mount mod.
+// Deliberately dependency-light (framework views only) so it builds on
+// any AOSP/Lineage tree without extra static libs.
+android_app {
+    name: "MorpheManager",
+
+    defaults: ["platform_app_defaults"],
+
+    srcs: [
+        "src/**/*.java",
+    ],
+
+    certificate: "platform",
+    resource_dirs: ["res"],
+    platform_apis: true,
+    system_ext_specific: true,
+    privileged: true,
+
+    required: [
+        "privapp_whitelist_com.android.morphe.xml",
+    ],
+}
+
+prebuilt_etc {
+    name: "privapp_whitelist_com.android.morphe.xml",
+    src: "permissions/privapp_whitelist_com.android.morphe.xml",
+    sub_dir: "permissions",
+    system_ext_specific: true,
+}

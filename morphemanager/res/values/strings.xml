@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Morphe</string>
+    <string name="toggle_title">Patched YouTube apps</string>
+    <string name="toggle_summary">Bind-mount patched builds over stock YouTube and YT Music at boot</string>
+    <string name="reboot">Reboot to apply</string>
+    <string name="reboot_done">Rebooting…</string>
+    <string name="reboot_manual">Could not reboot automatically — reboot manually to apply.</string>
+</resources>
