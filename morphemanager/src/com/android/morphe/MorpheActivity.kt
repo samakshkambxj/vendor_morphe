@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ButtonDefaults
@@ -80,7 +79,7 @@ private fun hasNotifPerm(ctx: Context): Boolean =
 @Composable
 private fun MorpheApp() {
     val ctx = LocalContext.current
-    val colorful = remember { isSystemInDarkTheme() }
+    val colorful = isSystemInDarkTheme()
     MaterialTheme(
         colorScheme = if (colorful) {
             dynamicDarkColorScheme(ctx)
@@ -383,8 +382,6 @@ private fun UpdatesTab(bar: SnackbarHostState) {
                             shape = RoundedCornerShape(20.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(),
                         ) {
-                            Icon(Icons.Filled.Download, contentDescription = null)
-                            Spacer(Modifier.padding(2.dp))
                             Text(
                                 if (r.update) ctx.getString(R.string.update_available)
                                 else ctx.getString(R.string.download)
