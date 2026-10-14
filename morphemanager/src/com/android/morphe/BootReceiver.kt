@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
+        LauncherIcon.sync(ctx.applicationContext)
         when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED -> {
                 UpdateCenter.reschedule(ctx)

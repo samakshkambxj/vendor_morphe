@@ -187,6 +187,7 @@ private fun ModsTab(bar: SnackbarHostState) {
                                 onCheckedChange = { v ->
                                     s.app.setWanted(v)
                                     wanted = wanted + (s.app to v)
+                                    LauncherIcon.sync(ctx)
                                 },
                             )
                         }

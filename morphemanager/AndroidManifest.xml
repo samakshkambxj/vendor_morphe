@@ -14,11 +14,33 @@
         <activity
             android:name=".MorpheActivity"
             android:exported="true">
+            <!-- No launcher filter here: the aliases below provide it so the
+                 icon can follow mod state (see LauncherIcon). -->
+        </activity>
+        <activity-alias
+            android:name=".LauncherActive"
+            android:targetActivity=".MorpheActivity"
+            android:label="@string/app_name"
+            android:icon="@drawable/ic_morphe"
+            android:exported="true"
+            android:enabled="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherIdle"
+            android:targetActivity=".MorpheActivity"
+            android:label="@string/app_name"
+            android:icon="@drawable/ic_morphe_off"
+            android:exported="true"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
         <receiver
             android:name=".BootReceiver"
             android:exported="true">
