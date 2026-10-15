@@ -31,6 +31,8 @@
     <string name="never_checked">Never checked</string>
     <string name="check_failed">Check failed — will retry on schedule</string>
     <string name="notify_channel">Update checks</string>
+    <string name="hero_all">Everything patched and running</string>
+    <string name="hero_some">Flip a switch below — reboot to apply</string>
     <string name="whats_new">What changed</string>
     <string name="no_notes">Check for updates to see release notes</string>
     <string name="ignore">Ignore updates</string>

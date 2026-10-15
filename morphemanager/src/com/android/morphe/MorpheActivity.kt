@@ -39,8 +39,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -89,6 +87,7 @@ private fun MorpheApp() {
         },
     ) {
         var tab by remember { mutableStateOf(0) }
+        var updateDot by remember { mutableStateOf(false) }
         val bar = remember { SnackbarHostState() }
         Scaffold(
             topBar = {
@@ -97,21 +96,20 @@ private fun MorpheApp() {
                 )
             },
             snackbarHost = { SnackbarHost(bar) },
+            bottomBar = {
+                GlassNavBar(
+                    selected = tab,
+                    labels = listOf(
+                        ctx.getString(R.string.tab_mods),
+                        ctx.getString(R.string.tab_updates),
+                    ),
+                    onSelect = { tab = it },
+                    badges = listOf(false, updateDot),
+                )
+            },
         ) { pad ->
             Column(Modifier.padding(pad).fillMaxSize()) {
-                TabRow(selectedTabIndex = tab) {
-                    Tab(
-                        selected = tab == 0,
-                        onClick = { tab = 0 },
-                        text = { Text(ctx.getString(R.string.tab_mods)) },
-                    )
-                    Tab(
-                        selected = tab == 1,
-                        onClick = { tab = 1 },
-                        text = { Text(ctx.getString(R.string.tab_updates)) },
-                    )
-                }
-                if (tab == 0) ModsTab(bar) else UpdatesTab(bar)
+                if (tab == 0) ModsTab(bar) else UpdatesTab(bar) { updateDot = it }
             }
         }
     }
@@ -145,6 +143,35 @@ private fun ModsTab(bar: SnackbarHostState) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { Spacer(Modifier.height(4.dp)) }
+        item {
+            val live = states.count { s ->
+                s.installed && !s.shadowedByUpdate &&
+                    (s.mountActive || !s.app.stockMode())
+            }
+            ElevatedCard(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(32.dp),
+                colors = androidx.compose.material3.CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
+            ) {
+                Column(Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
+                    Text(
+                        "$live of ${ModApp.values().size} patched",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        if (live == ModApp.values().size) ctx.getString(R.string.hero_all)
+                        else ctx.getString(R.string.hero_some),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                    )
+                }
+            }
+        }
         env?.let { e ->
             item {
                 ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
@@ -244,7 +271,7 @@ private fun ModsTab(bar: SnackbarHostState) {
 
 /** Update center: auto-check switch, manual check, per-app versions + module downloads. */
 @Composable
-private fun UpdatesTab(bar: SnackbarHostState) {
+private fun UpdatesTab(bar: SnackbarHostState, onUpdatesChanged: (Boolean) -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var auto by remember { mutableStateOf(UpdateCenter.autoCheck(ctx)) }
@@ -271,10 +298,12 @@ private fun UpdatesTab(bar: SnackbarHostState) {
             }
             val t = UpdateCenter.lastChecked(ctx)
             val n = UpdateCenter.notes(ctx)
+            val anyUpdate = r.any { it.update }
             withContext(Dispatchers.Main) {
                 rows = r
                 checkedAt = t
                 notes = n
+                onUpdatesChanged(anyUpdate)
             }
         }
     }
