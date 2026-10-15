@@ -4,9 +4,11 @@ package com.android.morphe
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RenderEffect
+import android.graphics.RuntimeShader
 import android.graphics.Shader
 import android.os.Build
 import android.os.SystemClock
@@ -46,7 +48,9 @@ fun RealBlurBackdrop(
     modifier: Modifier = Modifier,
     blurRadiusPx: Float = 20f,
     updateKey: Any = Unit,
-    downsample: Int = 8
+    downsample: Int = 8,
+    /** Liquid lens strength 0..1. 0 = frosted snapshot blur, >0 = refraction lens. */
+    lensAmount: Float = 0f,
 ) {
     Box(modifier = modifier) {
         AndroidView(
@@ -54,23 +58,72 @@ fun RealBlurBackdrop(
                 BackdropBlurView(context).also {
                     it.blurRadiusPx = blurRadiusPx
                     it.downsample = downsample
+                    it.lensAmount = lensAmount
+                    it.veilColor = tint
                 }
             },
             update = { view ->
                 view.blurRadiusPx = blurRadiusPx
+                view.lensAmount = lensAmount
+                view.veilColor = tint
                 @Suppress("UNUSED_EXPRESSION")
                 updateKey
                 view.requestRefresh()
             },
             modifier = Modifier.fillMaxSize()
         )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(tint)
-        )
+        if (lensAmount <= 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(tint)
+            )
+        }
     }
 }
+
+/**
+ * Liquid-glass lens shader. Refraction bends toward the pill center,
+ * strongest at the rim; each channel samples with a slight spread for the
+ * prismatic fringe; a top band plus rim glow fakes the specular; mild
+ * saturation lift keeps colors lively under the tint.
+ */
+private const val LENS_SKS = """
+uniform shader backdrop;
+uniform vec2 resolution;
+uniform float aspect;
+uniform float refraction;
+uniform float aberration;
+uniform vec4 tint;
+uniform float saturation;
+
+float lum(vec3 c) {
+    return dot(c, vec3(0.299, 0.587, 0.114));
+}
+
+vec4 main(vec2 fragCoord) {
+    vec2 uv = fragCoord / resolution;
+    float ex = min(uv.x, 1.0 - uv.x) * aspect;
+    float ey = min(uv.y, 1.0 - uv.y);
+    float edge = min(ex, ey);
+    float bend = 1.0 - smoothstep(0.0, 0.18, edge);
+    vec2 toC = vec2(0.5, 0.5) - uv;
+    float dist = max(length(toC), 0.0001);
+    vec2 off = (toC / dist) * bend * bend * refraction * resolution.x;
+    vec2 ca = off * aberration;
+    vec2 p = fragCoord + off;
+    float r = backdrop.eval(p + ca).r;
+    float g = backdrop.eval(p).g;
+    float b = backdrop.eval(p - ca).b;
+    vec3 rgb = vec3(r, g, b);
+    rgb = mix(vec3(lum(rgb)), rgb, saturation);
+    float topBand = pow(1.0 - smoothstep(0.0, 0.35, uv.y), 2.0);
+    float rim = pow(1.0 - smoothstep(0.0, 0.10, edge), 3.0);
+    float spec = topBand * 0.10 + rim * 0.20;
+    vec3 outc = rgb * tint.rgb + vec3(spec);
+    return vec4(outc, 1.0);
+}
+"""
 
 /**
  * Snapshots the activity root behind this view and draws it blurred.
@@ -89,6 +142,13 @@ class BackdropBlurView @JvmOverloads constructor(
                 applyRenderEffect()
             }
         }
+    /** Liquid lens strength 0..1 (0 = frosted blur path). */
+    var lensAmount: Float = 0f
+    var veilColor: Color = Color.Transparent
+    private var lensShader: RuntimeShader? = null
+    private var lensBitmap: Bitmap? = null
+    private val lensPaint = Paint()
+    private val veilPaint = Paint()
     var downsample: Int = 8
         set(value) {
             val coerced = value.coerceIn(4, 8)
@@ -276,14 +336,55 @@ class BackdropBlurView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val bitmap = snapshot
-        if (bitmap != null && !bitmap.isRecycled) {
+        if (bitmap == null || bitmap.isRecycled) return
+        if (lensAmount > 0f && drawLens(canvas, bitmap)) return
+        drawRect.set(0, 0, width, height)
+        canvas.drawBitmap(bitmap, null, drawRect, bitmapPaint)
+    }
+
+    /**
+     * Liquid-glass pass: the snapshot goes through the refraction lens
+     * instead of a plain blit. Any failure (bad shader, recycled bitmap)
+     * returns false and the caller falls back to the frosted blit — and
+     * if even that cannot run, a flat veil keeps text legible.
+     */
+    private fun drawLens(canvas: Canvas, bitmap: Bitmap): Boolean {
+        return try {
+            var shader = lensShader
+            if (shader == null) {
+                shader = RuntimeShader(LENS_SKS)
+                lensShader = shader
+                lensBitmap = null
+                setRenderEffect(null)
+            }
+            if (lensBitmap !== bitmap) {
+                shader.setInputShader(
+                    "backdrop",
+                    BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+                )
+                lensBitmap = bitmap
+            }
+            val w = width.toFloat()
+            val h = height.toFloat()
+            if (w <= 0f || h <= 0f) return false
+            shader.setFloatUniform("resolution", w, h)
+            shader.setFloatUniform("aspect", w / h)
+            shader.setFloatUniform("refraction", 0.016f * lensAmount.coerceIn(0f, 1f))
+            shader.setFloatUniform("aberration", 0.18f)
+            val tint = veilColor
+            shader.setFloatUniform("tint", tint.red, tint.green, tint.blue, 1f)
+            shader.setFloatUniform("saturation", 1.3f)
+            lensPaint.shader = shader
+            canvas.drawRect(0f, 0f, w, h, lensPaint)
+            true
+        } catch (_: Exception) {
+            lensShader = null
+            lensBitmap = null
+            veilPaint.color = veilColor.toArgb()
+            veilPaint.shader = null
             drawRect.set(0, 0, width, height)
-            canvas.drawBitmap(
-                bitmap,
-                null,
-                drawRect,
-                bitmapPaint
-            )
+            canvas.drawRect(drawRect, veilPaint)
+            true
         }
     }
 }

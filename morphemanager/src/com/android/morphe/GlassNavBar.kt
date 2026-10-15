@@ -6,7 +6,6 @@ import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -31,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -84,19 +82,6 @@ fun GlassNavBar(
                     spotShadowColor = Color.Black
                 }
                 .background(Color.Transparent, CircleShape)
-                .border(
-                    BorderStroke(
-                        1.dp,
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.35f),
-                                Color.White.copy(alpha = 0.06f),
-                                Color.Transparent,
-                            )
-                        ),
-                    ),
-                    CircleShape,
-                )
                 .clip(CircleShape)
                 .height(barHeight)
                 .fillMaxWidth(),
@@ -105,6 +90,7 @@ fun GlassNavBar(
                 tint = veil,
                 modifier = Modifier.fillMaxWidth().height(barHeight),
                 updateKey = selected,
+                lensAmount = 0.7f,
             )
             // Sliding indicator pill under the active tab.
             if (widthPx > 0f) {
