@@ -35,7 +35,8 @@ set -euo pipefail
 
 REPO_OVERRIDE="${REPO:-}"
 OWN_REPO="${OWN_REPO:-samakshkambxj/morphe-builder}"
-UPSTREAM_REPO="${UPSTREAM_REPO:-j-hc/revanced-magisk-module}"
+# Optional second source consulted only when set (never a default).
+UPSTREAM_REPO="${UPSTREAM_REPO:-}"
 VENDOR_DIR="$(cd "$(dirname "$0")" && pwd)"
 YT_OUT="$VENDOR_DIR/common/product/etc/rv/YTPatched.apk"
 MUSIC_OUT="$VENDOR_DIR/common/product/etc/rv/YTMusicPatched.apk"
@@ -261,10 +262,10 @@ EOF
         MANIFEST="$WORKDIR/versions.json"
         fetch_versions "$OWN_REPO" "$TAG" "$MANIFEST" >/dev/null || MANIFEST=""
         [ -n "$MANIFEST" ] && echo "[*] Manifest: $OWN_REPO tag $TAG (staged builds will be sha256-verified)."
-    elif pick_repo "$UPSTREAM_REPO" upstream; then
+    elif [ -n "$UPSTREAM_REPO" ] && pick_repo "$UPSTREAM_REPO" upstream; then
         echo "[*] Source: upstream fallback ($UPSTREAM_REPO tag $TAG — own builder has no usable release yet)."
     else
-        echo "[!] No usable release in $OWN_REPO nor $UPSTREAM_REPO."
+        echo "[!] No usable release in $OWN_REPO (set UPSTREAM_REPO=<owner/repo> to enable fallback)."
         exit 1
     fi
 

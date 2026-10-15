@@ -23,7 +23,6 @@ private const val KEY_LAST_CHECK = "last_checked"
 private const val CHANNEL = "morphe_updates"
 private const val JOB_ID = 4101
 private const val DAY_MS = 24L * 60 * 60 * 1000
-private const val BUILDER = "j-hc/revanced-magisk-module"
 private const val OWN_BUILDER = "samakshkambxj/morphe-builder"
 
 /** Latest known module per app: parsed base version + download URL. */
@@ -81,12 +80,6 @@ object UpdateCenter {
         }
     }
 
-    /** Version embedded in a module asset name: youtube-morphe-module-v21.20.405-all.zip -> 21.20.405. */
-    fun assetVersion(name: String): String? {
-        val m = Regex("v(\\d[\\d.]*)").find(name) ?: return null
-        return m.groupValues[1].trimEnd('.')
-    }
-
     fun cmpVer(a: String, b: String): Int {
         val pa = a.split(".").map { it.toIntOrNull() ?: 0 }
         val pb = b.split(".").map { it.toIntOrNull() ?: 0 }
@@ -97,35 +90,14 @@ object UpdateCenter {
         return 0
     }
 
-    private fun assetUrls(release: JSONObject): Map<ModApp, Pair<String, String>> {
-        val out = mutableMapOf<ModApp, Pair<String, String>>()
-        val assets: JSONArray = release.optJSONArray("assets") ?: return out
-        for (i in 0 until assets.length()) {
-            val a = assets.optJSONObject(i) ?: continue
-            val url = a.optString("browser_download_url", "")
-            if (!url.endsWith(".zip")) continue
-            val name = url.substringAfterLast('/')
-            val app = ModApp.values().firstOrNull { name.contains(it.moduleMatch) }
-                ?: continue
-            // Prefer arm64 music builds; first zip wins otherwise.
-            val cur = out[app]
-            if (cur == null || (app == ModApp.MUSIC && "arm64" in name && "arm64" !in cur.first)) {
-                val v = assetVersion(name) ?: continue
-                out[app] = url to v
-            }
-        }
-        return out
-    }
-
     /**
-     * Scan newest-first for the first release holding all three modules.
-     * Own builder first (exact module names + versions.json manifest, no
-     * scraping), upstream rotating-tag scan as fallback. Runs on the
-     * caller's thread.
+     * Scan newest-first for the first release holding all three modules,
+     * via versions.json (versions + module files, no scraping). Runs on
+     * the caller's thread.
      */
     fun check(ctx: Context): Boolean {
         return try {
-            checkOwn(ctx) || checkUpstream(ctx)
+            checkOwn(ctx)
         } catch (e: Exception) {
             false
         }
@@ -169,43 +141,6 @@ object UpdateCenter {
             }
         }
         return false
-    }
-
-    private fun checkUpstream(ctx: Context): Boolean {
-        return try {
-            val list = JSONArray(get("https://api.github.com/repos/$BUILDER/releases?per_page=10"))
-            var found: Map<ModApp, Pair<String, String>>? = null
-            var foundTag = ""
-            var foundBody = ""
-            for (i in 0 until list.length()) {
-                val tag = list.optJSONObject(i)?.optString("tag_name", "") ?: ""
-                if (tag.isEmpty()) continue
-                val rel = JSONObject(get("https://api.github.com/repos/$BUILDER/releases/tags/$tag"))
-                val urls = assetUrls(rel)
-                if (ModApp.values().all { it in urls }) {
-                    found = urls
-                    foundTag = tag
-                    foundBody = rel.optString("body", "")
-                    break
-                }
-            }
-            val ok = found != null
-            if (ok) {
-                val ed = prefs(ctx).edit()
-                for ((app, nv) in found!!) {
-                    ed.putString("latest_${app.name}_v", nv.second)
-                    ed.putString("latest_${app.name}_u", nv.first)
-                }
-                ed.putString("notes_tag", foundTag)
-                ed.putString("notes_body", foundBody.take(4000))
-                ed.putLong(KEY_LAST_CHECK, System.currentTimeMillis())
-                ed.apply()
-                notifyUpdates(ctx)
-            }
-            ok
-        } catch (e: Exception) {
-            false
-        }
     }
 
     /** Installed base version per app, or null when absent. */

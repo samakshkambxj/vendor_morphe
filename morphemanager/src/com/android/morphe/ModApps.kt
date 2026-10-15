@@ -14,8 +14,6 @@ enum class ModApp(
     val stockApkPath: String,
     /** Inert patched blob; present only in stock mode (mount source). */
     val rvApkPath: String,
-    /** Substring identifying this app's module zip in builder release assets. */
-    val moduleMatch: String,
 ) {
     YOUTUBE(
         R.string.mod_youtube,
@@ -23,7 +21,6 @@ enum class ModApp(
         "com.google.android.youtube",
         "/product/app/YouTube/com.google.android.youtube.apk",
         "/product/etc/rv/YTPatched.apk",
-        "youtube-morphe-module-",
     ),
     MUSIC(
         R.string.mod_music,
@@ -31,7 +28,6 @@ enum class ModApp(
         "com.google.android.apps.youtube.music",
         "/product/app/YTMusic/com.google.android.apps.youtube.music.apk",
         "/product/etc/rv/YTMusicPatched.apk",
-        "music-morphe-module-",
     ),
     REDDIT(
         R.string.mod_reddit,
@@ -39,7 +35,6 @@ enum class ModApp(
         "com.reddit.frontpage",
         "/product/app/Reddit/com.reddit.frontpage.apk",
         "/product/etc/rv/RedditPatched.apk",
-        "reddit-morphe-module-",
     );
 
     fun wanted(): Boolean = SystemProperties.getBoolean(prop, true)
