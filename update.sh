@@ -3,10 +3,11 @@
 #
 # Patched builds come from ROOT module zips (stock package names com.google.*,
 # meant to replace stock apps). Two ways to supply them:
-#   1. Downloaded automatically from a module builder's GitHub releases
-#      (default). The builder rotates tag names across daily runs and the
-#      newest release doesn't always carry every app, so the newest
-#      release holding all still-needed modules is auto-selected.
+#   1. Downloaded automatically, own builder first:
+#      samakshkambxj/morphe-builder releases (exact youtube/music/reddit-
+#      module.zip assets + versions.json manifest, sha256-verified), falling
+#      back per-run to the upstream builder's rotating tags when ours has no
+#      usable release yet. Force one side with REPO=<owner/repo>.
 #   2. Locally-built module zips, e.g. produced by a builder checkout's
 #      build.sh run — pass them via flags and the download is skipped
 #      for that app.
@@ -23,7 +24,8 @@
 #   ./update.sh --stock-yt /path/to/base.apk --stock-music /path/to/base.apk
 #   ./update.sh --yt-module /path/to/yt-module.zip --music-module /path/to/music-module.zip
 #   ./update.sh --reddit-module /path/to/reddit-module.zip
-#   REPO=<builder> ./update.sh                                   # alternate module builder
+#   REPO=<owner/repo> ./update.sh                            # force single builder (skip own/upstream chain)
+#   OWN_REPO=<owner/repo> UPSTREAM_REPO=<owner/repo> ./update.sh  # override either side of the chain
 #   TAG=<release-tag> ./update.sh                               # pin a builder release
 #   STOCK_YT=/path STOCK_MUSIC=/path STOCK_REDDIT=/path YT_MOD=/path MUSIC_MOD=/path REDDIT_MOD=/path ./update.sh  # env form
 #
@@ -31,7 +33,9 @@
 
 set -euo pipefail
 
-REPO="${REPO:-j-hc/revanced-magisk-module}"
+REPO_OVERRIDE="${REPO:-}"
+OWN_REPO="${OWN_REPO:-samakshkambxj/morphe-builder}"
+UPSTREAM_REPO="${UPSTREAM_REPO:-j-hc/revanced-magisk-module}"
 VENDOR_DIR="$(cd "$(dirname "$0")" && pwd)"
 YT_OUT="$VENDOR_DIR/common/product/etc/rv/YTPatched.apk"
 MUSIC_OUT="$VENDOR_DIR/common/product/etc/rv/YTMusicPatched.apk"
@@ -162,8 +166,8 @@ if [ "$NEED_DL_YT" -eq 1 ] || [ "$NEED_DL_MUSIC" -eq 1 ] || [ "$NEED_DL_REDDIT" 
     WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/morphe-update.XXXXXX")"
     trap 'rm -rf "$WORKDIR"' EXIT
 
-    _pick_urls() {
-        # $1 = one release's JSON. Sets *_ZIP_URL (empty if absent).
+    _pick_upstream() {
+        # $1 = one release's JSON (upstream rotating-tag layout). Sets *_ZIP_URL.
         YT_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep 'youtube-morphe-module-' | grep '\.zip"' | head -n1 | cut -d'"' -f4 || true)"
         # Prefer arm64, fall back to whatever arch the release carries.
         MUSIC_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep 'music-morphe-module-' | grep 'arm64' | grep '\.zip"' | head -n1 | cut -d'"' -f4 || true)"
@@ -171,6 +175,33 @@ if [ "$NEED_DL_YT" -eq 1 ] || [ "$NEED_DL_MUSIC" -eq 1 ] || [ "$NEED_DL_REDDIT" 
             MUSIC_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep 'music-morphe-module-' | grep '\.zip"' | head -n1 | cut -d'"' -f4 || true)"
         fi
         REDDIT_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep 'reddit-morphe-module-' | grep '\.zip"' | head -n1 | cut -d'"' -f4 || true)"
+    }
+
+    _pick_own() {
+        # $1 = one release's JSON (own builder: exact youtube/music/reddit-module.zip).
+        YT_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep '/youtube-module\.zip"' | head -n1 | cut -d'"' -f4 || true)"
+        MUSIC_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep '/music-module\.zip"' | head -n1 | cut -d'"' -f4 || true)"
+        REDDIT_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep '/reddit-module\.zip"' | head -n1 | cut -d'"' -f4 || true)"
+    }
+
+    fetch_versions() {
+        # $1 = repo, $2 = tag, $3 = out path. Prints path on success, nothing otherwise.
+        if curl -fsSL -o "$3" "https://github.com/$1/releases/download/$2/versions.json" 2>/dev/null; then
+            echo "$3"
+        fi
+    }
+
+    verify_sha() {
+        # $1 = staged apk, $2 = versions.json, $3 = app key (YouTube|Music|Reddit).
+        [ -f "$2" ] || return 0
+        python3 - "$1" "$2" "$3" <<'EOF'
+import json, sys, hashlib
+apk, man, app = sys.argv[1], sys.argv[2], sys.argv[3]
+want = json.load(open(man))["apps"][app]["sha256"]
+got = hashlib.sha256(open(apk, "rb").read()).hexdigest()
+print(f"sha256 {app}: manifest {want[:12]}.. staged {got[:12]}..")
+sys.exit(0 if want == got else f"SHA256 MISMATCH for {app}")
+EOF
     }
 
     _have_needed() {
@@ -183,27 +214,58 @@ if [ "$NEED_DL_YT" -eq 1 ] || [ "$NEED_DL_MUSIC" -eq 1 ] || [ "$NEED_DL_REDDIT" 
     YT_ZIP_URL=""
     MUSIC_ZIP_URL=""
     REDDIT_ZIP_URL=""
-    if [ -n "${TAG:-}" ]; then
-        echo "[*] Using pinned tag: $TAG"
-        TAG_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/$TAG")"
-        _pick_urls "$TAG_JSON"
-        _have_needed || { echo "[!] Tag $TAG lacks the needed module(s): https://github.com/$REPO/releases/tag/$TAG"; exit 1; }
+    MANIFEST=""
+    pick_repo() {
+        # $1 = repo, $2 = own|upstream. Resolves URLs for still-needed apps
+        # (TAG pin or newest-first scan), sets TAG on success. Returns nonzero
+        # when this repo cannot satisfy the run.
+        local repo=$1 mode=$2 t json tags
+        if [ -n "${TAG:-}" ]; then
+            echo "[*] Using pinned tag: $TAG ($repo)"
+            json="$(curl -fsSL "https://api.github.com/repos/$repo/releases/tags/$TAG")" || return 1
+            if [ "$mode" = "own" ]; then _pick_own "$json"; else _pick_upstream "$json"; fi
+            _have_needed || return 1
+        else
+            echo "[*] Scanning recent releases of $repo ..."
+            tags="$(curl -fsSL "https://api.github.com/repos/$repo/releases?per_page=10" | grep '"tag_name"' | cut -d'"' -f4)" || return 1
+            for t in $tags; do
+                json="$(curl -fsSL "https://api.github.com/repos/$repo/releases/tags/$t")" || continue
+                if [ "$mode" = "own" ]; then _pick_own "$json"; else _pick_upstream "$json"; fi
+                if _have_needed; then TAG="$t"; break; fi
+            done
+            [ -n "${TAG:-}" ] || return 1
+            echo "[*] Selected tag: $TAG ($repo)"
+        fi
+        return 0
+    }
+    if [ -n "$REPO_OVERRIDE" ]; then
+        echo "[*] Forced single builder: $REPO_OVERRIDE (own/upstream chain skipped)"
+        if [ -n "${TAG:-}" ]; then
+            echo "[*] Using pinned tag: $TAG"
+            TAG_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO_OVERRIDE/releases/tags/$TAG")"
+            _pick_upstream "$TAG_JSON"
+            _have_needed || { echo "[!] Tag $TAG lacks the needed module(s): https://github.com/$REPO_OVERRIDE/releases/tag/$TAG"; exit 1; }
+        else
+            echo "[*] Scanning recent releases of $REPO_OVERRIDE ..."
+            RELEASES_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO_OVERRIDE/releases?per_page=10")"
+            for t in $(printf '%s\n' "$RELEASES_JSON" | grep '"tag_name"' | cut -d'"' -f4); do
+                TAG_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO_OVERRIDE/releases/tags/$t")"
+                _pick_upstream "$TAG_JSON"
+                if _have_needed; then TAG="$t"; break; fi
+            done
+            [ -n "${TAG:-}" ] || { echo "[!] No recent release of $REPO_OVERRIDE holds the needed module(s)."; exit 1; }
+            echo "[*] Selected tag: $TAG"
+        fi
+    elif pick_repo "$OWN_REPO" own; then
+        echo "[*] Source: own builder."
+        MANIFEST="$WORKDIR/versions.json"
+        fetch_versions "$OWN_REPO" "$TAG" "$MANIFEST" >/dev/null || MANIFEST=""
+        [ -n "$MANIFEST" ] && echo "[*] Manifest: $OWN_REPO tag $TAG (staged builds will be sha256-verified)."
+    elif pick_repo "$UPSTREAM_REPO" upstream; then
+        echo "[*] Source: upstream fallback ($UPSTREAM_REPO tag $TAG — own builder has no usable release yet)."
     else
-        # This builder rotates a pool of tag names across daily runs and the
-        # newest release doesn't always carry every app, so scan newest-first
-        # for the first release holding everything still needed.
-        echo "[*] Scanning recent releases of $REPO ..."
-        RELEASES_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=10")"
-        for t in $(printf '%s\n' "$RELEASES_JSON" | grep '"tag_name"' | cut -d'"' -f4); do
-            TAG_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/$t")"
-            _pick_urls "$TAG_JSON"
-            if _have_needed; then
-                TAG="$t"
-                break
-            fi
-        done
-        [ -n "${TAG:-}" ] || { echo "[!] No recent release of $REPO holds the needed module(s)."; exit 1; }
-        echo "[*] Selected tag: $TAG"
+        echo "[!] No usable release in $OWN_REPO nor $UPSTREAM_REPO."
+        exit 1
     fi
 
     if [ "$NEED_DL_YT" -eq 1 ]; then
@@ -223,6 +285,13 @@ if [ "$NEED_DL_YT" -eq 1 ] || [ "$NEED_DL_MUSIC" -eq 1 ] || [ "$NEED_DL_REDDIT" 
         curl -fL -o "$WORKDIR/reddit.zip" "$REDDIT_ZIP_URL"
         _stage_apk "$WORKDIR/reddit.zip" "$REDDIT_OUT"
         _stage_libs "$WORKDIR/reddit.zip" "$VENDOR_DIR/common/product/app/Reddit/lib/arm64"
+    fi
+
+    if [ -n "${MANIFEST:-}" ] && [ -f "$MANIFEST" ]; then
+        echo "[*] Verifying staged builds against the release manifest ..."
+        if [ "$NEED_DL_YT" -eq 1 ]; then verify_sha "$YT_OUT" "$MANIFEST" YouTube; fi
+        if [ "$NEED_DL_MUSIC" -eq 1 ]; then verify_sha "$MUSIC_OUT" "$MANIFEST" Music; fi
+        if [ "$NEED_DL_REDDIT" -eq 1 ]; then verify_sha "$REDDIT_OUT" "$MANIFEST" Reddit; fi
     fi
 fi
 

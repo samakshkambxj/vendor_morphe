@@ -24,9 +24,17 @@ private const val CHANNEL = "morphe_updates"
 private const val JOB_ID = 4101
 private const val DAY_MS = 24L * 60 * 60 * 1000
 private const val BUILDER = "j-hc/revanced-magisk-module"
+private const val OWN_BUILDER = "samakshkambxj/morphe-builder"
 
 /** Latest known module per app: parsed base version + download URL. */
 data class LatestModule(val version: String, val url: String)
+
+/** Manifest app keys in our builder's versions.json. */
+private fun ModApp.manifestKey(): String = when (this) {
+    ModApp.YOUTUBE -> "YouTube"
+    ModApp.MUSIC -> "Music"
+    ModApp.REDDIT -> "Reddit"
+}
 
 object UpdateCenter {
 
@@ -111,10 +119,59 @@ object UpdateCenter {
 
     /**
      * Scan newest-first for the first release holding all three modules.
-     * The builder rotates tag names across daily runs; the newest release
-     * does not always carry every app. Runs on the caller's thread.
+     * Own builder first (exact module names + versions.json manifest, no
+     * scraping), upstream rotating-tag scan as fallback. Runs on the
+     * caller's thread.
      */
     fun check(ctx: Context): Boolean {
+        return try {
+            checkOwn(ctx) || checkUpstream(ctx)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Own builder: versions.json per tag gives versions + module files. */
+    private fun checkOwn(ctx: Context): Boolean {
+        val list = JSONArray(get("https://api.github.com/repos/$OWN_BUILDER/releases?per_page=10"))
+        for (i in 0 until list.length()) {
+            val tag = list.optJSONObject(i)?.optString("tag_name", "") ?: ""
+            if (tag.isEmpty()) continue
+            val man = try {
+                JSONObject(get("https://github.com/$OWN_BUILDER/releases/download/$tag/versions.json"))
+            } catch (e: Exception) {
+                continue
+            }
+            val apps = man.optJSONObject("apps") ?: continue
+            if (ModApp.values().all { apps.has(it.manifestKey()) }) {
+                val ed = prefs(ctx).edit()
+                for (app in ModApp.values()) {
+                    val entry = apps.getJSONObject(app.manifestKey())
+                    ed.putString("latest_${app.name}_v", entry.optString("base_version", ""))
+                    ed.putString(
+                        "latest_${app.name}_u",
+                        "https://github.com/$OWN_BUILDER/releases/download/$tag/" +
+                            entry.optString("module", ""),
+                    )
+                }
+                // Release notes live on the tag itself.
+                try {
+                    val rel = JSONObject(get("https://api.github.com/repos/$OWN_BUILDER/releases/tags/$tag"))
+                    ed.putString("notes_tag", tag)
+                    ed.putString("notes_body", rel.optString("body", "").take(4000))
+                } catch (e: Exception) {
+                    // Notes stay as-is; versions are what matter.
+                }
+                ed.putLong(KEY_LAST_CHECK, System.currentTimeMillis())
+                ed.apply()
+                notifyUpdates(ctx)
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun checkUpstream(ctx: Context): Boolean {
         return try {
             val list = JSONArray(get("https://api.github.com/repos/$BUILDER/releases?per_page=10"))
             var found: Map<ModApp, Pair<String, String>>? = null
