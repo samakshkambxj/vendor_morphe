@@ -191,6 +191,7 @@ case "${1:-}" in
     "" )
         if is_applied; then
             echo "[settings-patch] already applied."
+            show_search_guidance
         elif [ ! -t 0 ]; then
             echo "[settings-patch] missing (non-interactive; re-run with --apply)."
         else
