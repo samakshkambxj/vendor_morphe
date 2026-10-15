@@ -178,10 +178,10 @@ if [ "$NEED_DL_YT" -eq 1 ] || [ "$NEED_DL_MUSIC" -eq 1 ] || [ "$NEED_DL_REDDIT" 
     }
 
     _pick_own() {
-        # $1 = one release's JSON (own builder: exact youtube/music/reddit-module.zip).
-        YT_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep '/youtube-module\.zip"' | head -n1 | cut -d'"' -f4 || true)"
-        MUSIC_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep '/music-module\.zip"' | head -n1 | cut -d'"' -f4 || true)"
-        REDDIT_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep '/reddit-module\.zip"' | head -n1 | cut -d'"' -f4 || true)"
+        # $1 = one release's JSON (own builder: <prefix>-morphe-module-v<base>-<arch>.zip).
+        YT_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep 'youtube-morphe-module-' | grep '\.zip"' | head -n1 | cut -d'"' -f4 || true)"
+        MUSIC_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep 'music-morphe-module-' | grep '\.zip"' | head -n1 | cut -d'"' -f4 || true)"
+        REDDIT_ZIP_URL="$(printf '%s\n' "$1" | grep 'browser_download_url' | grep 'reddit-morphe-module-' | grep '\.zip"' | head -n1 | cut -d'"' -f4 || true)"
     }
 
     fetch_versions() {
